@@ -1,0 +1,18 @@
+// Verilator lint 配置（--lint-only 时由 tools/sv.py 通过 -f/-W 与 --config 使用）
+//
+// `verilator_config` 起头的行是配置指令；文件后缀 .vlt 表示纯配置。
+// 原则：默认开启全部告警；只关掉「与本仓约定冲突」或「由其它工具负责」的规则。
+// 每关一条都要在这个文件里写明理由，否则评审会问。
+
+`verilator_config
+
+// TB / 仿真文件不受可综合性规则约束
+lint_off -rule UNUSED      -file "*_tb.sv"
+lint_off -rule UNDRIVEN    -file "*_tb.sv"
+lint_off -rule DECLFILENAME -file "*_tb.sv"
+
+// 注：风格类告警由 verible 负责，靠命令行 `-Wno-style` 关闭（不在这里写规则名，
+//     避免 verilator 版本间规则名不一致导致控制文件解析失败）。
+
+// 例外示例（用完请删除，长期豁免要写进 06-checks/waivers/，这里只放文件级约定）：
+// lint_off -rule WIDTH -file "*/vendor/*" -match "Operator ASSIGNW expects*"

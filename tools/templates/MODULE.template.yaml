@@ -1,0 +1,21 @@
+# 模块契约 —— 本文件是该模块的唯一身份来源
+#
+# 由 `python3 tools/sv.py new module <module> --short <short>` 生成。
+# 位置固定为 03-design/<module>/module.yaml；04-rtl 与 05-verification 不再重复声明。
+#
+# 校验规则（gate 03/04/05）：
+#   - id_short 必须匹配 ^[a-z][a-z0-9_]{1,7}$ 且全仓唯一
+#   - 本目录下每份 DES-<id_short>-* 的短名必须与 id_short 一致
+#   - implements 里每条必须是本目录下存在的 DES-*（且 ④ 门禁要求其已 approved）
+#   - files 里的每个文件必须存在于 04-rtl/<module>/
+
+module: {{MODULE}}
+id_short: {{SHORT}}
+owner: agent
+rtl_toplevel: {{MODULE}}
+
+# 本模块实现了哪些详细设计（由 `sv.py new des` 自动追加）
+implements: []
+
+# 04-rtl/<module>/ 下的 RTL 文件清单（filelist 之外的第二处记录，用于门禁核对）
+files: []

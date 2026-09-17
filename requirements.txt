@@ -1,0 +1,15 @@
+# spec-to-RTL 的 Python 侧依赖
+#
+# 本文件只声明依赖；本仓库不自建环境、不代装（见 README「安装」）。
+# 门禁脚本 tools/sv.py 的“结构 + 追溯”部分只需 PyYAML；
+# cocotb 仅 05-verification（代码自测）阶段需要。
+#
+# 安装（任选其一，均在用户态，无需 sudo）：
+#   python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
+#   uv venv .venv && uv pip install -r requirements.txt
+#
+# 注意：Ubuntu 的 python3-yaml 若已存在（python3 -c "import yaml"），
+#       则 PyYAML 一行可以省掉，见 docs/setup/toolchain.md。
+
+PyYAML>=6.0
+cocotb>=2.0

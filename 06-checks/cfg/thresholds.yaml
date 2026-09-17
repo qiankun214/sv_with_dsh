@@ -1,0 +1,23 @@
+# 检查门禁的 soft warn 阈值（hard fail 项不在此文件，见 AGENTS.md §5）
+#
+# 修改阈值属于流程决策，请连同 06-checks/<module>/CHK-*.md 的结论一起评审。
+
+coverage:
+  # 低于阈值 → soft warn（cocotb + verilator --coverage 产出）
+  line_warn: 80        # 行覆盖率百分比
+  toggle_warn: 60      # 翻转覆盖率百分比
+  # 需求覆盖率：由 tools/sv.py trace 计算（每个 REQ 至少被一个 TC 覆盖）
+  # 该维度不设阈值开关：门禁算出来若 <100%，以 soft warn 呈现
+  require_req_coverage: true
+
+lint:
+  # verilator --lint-only 的 warning 数量上限（超过 → soft warn）
+  max_warnings: 0
+  # verible 风格告警上限
+  max_style_warnings: 0
+
+synth:
+  # 单元数上限；0 表示不检查（首版通常先观察再定基线）
+  area_warn_cells: 0
+  # 是否要求综合必须成功（false 时综合失败也只 warn）
+  require_success: true

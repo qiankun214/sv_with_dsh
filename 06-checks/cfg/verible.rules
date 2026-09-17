@@ -1,0 +1,25 @@
+# Verible lint 规则配置（verible-verilog-lint --rules_config=06-checks/cfg/verible.rules）
+#
+# 语法：每行 +rule_name 表示启用，-rule_name 表示关闭，# 起注释。
+# ⚠️ 规则名必须真实存在，否则 verible 会直接报错退出；
+#    新增前先查：verible-verilog-lint --help_rules=<rule_name>  或  --help_rules
+#
+# 原则：风格由 Verible 统一负责（Verilator 侧已用 -Wno-style 关闭），
+#      这里只显式关掉「与本仓约定冲突」或「与格式工具重复」的规则，其余保持默认。
+
+# --- 明确关闭（每条写理由） ---
+# 行宽由 verible-verilog-format 统一处理，lint 不再重复报同一问题
+-line-length
+
+# --- 显式启用（把期望的约定写明，便于评审对照） ---
+# 每个 module/package 一个文件（与本仓「一模块一目录」约定一致）
++module-filename
+# 文件以换行结尾
++posix-eof
+# 行尾不留空白、文件内不用 tab
++no-trailing-spaces
++no-tabs
+# 参数/端口必须显式写出存储类型（对应 coding-standard 的「禁止隐式位宽」）
++explicit-parameter-storage-type
+# case 必须有 default（对应 coding-standard §4.3）
++case-missing-default

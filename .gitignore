@@ -1,0 +1,50 @@
+# ============================================================
+# spec-to-RTL 仓库忽略规则
+# 原则：工具报告只在 06-checks/reports/ 下忽略“大产物”，
+#       summary.json / summary.md / CHK-*.md 等证据必须入库。
+# ============================================================
+
+# --- 本地工具链与环境（由使用者自装，不随仓库分发） ---
+.tools/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# --- 仿真/综合大产物 ---
+obj_dir/
+*.vcd
+*.fst
+*.ghw
+*.wdb
+*.vpd
+*.fsdb
+
+# 网表与中间文件
+*.netlist.v
+*.synth.v
+*.blif
+*.json.tmp
+
+# 编译中间物
+*.o
+*.so
+*.a
+*.d
+*.mk
+
+# --- 06-checks/reports/：默认忽略，只保留 summary 级证据 ---
+# 注意：这里不使用 `**/*`（会把目录本身排除，导致后续 ! 失效）
+06-checks/reports/**/*.log
+06-checks/reports/**/*.rpt
+06-checks/reports/**/*.vcd
+06-checks/reports/**/*.fst
+06-checks/reports/**/obj_dir/
+
+# --- 编辑器/系统 ---
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
