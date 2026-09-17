@@ -16,10 +16,11 @@ tools/sv.py        唯一入口（门禁/追溯/建产物/自检）
 .dsh/skills/       8 个技能：六阶段 + 编排 + 评审
 ```
 
-## 先读这两份
+## 先读这几份
 
 - **[AGENTS.md](AGENTS.md)** — 流程总纲：铁律、ID 规则、front-matter 契约、门禁强度。人和 agent 都从这里开始。
 - **各阶段目录下的 `README.md`** — 该阶段放什么、怎么命名、门禁怎么跑。
+- **[docs/handover/HANDOVER.md](docs/handover/HANDOVER.md)** — 交接文档：现状、决策记录、验证状况与未完成项、接手步骤。
 
 ## 安装（本仓库不自建环境）
 
