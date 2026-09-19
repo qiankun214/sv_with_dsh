@@ -1,4 +1,9 @@
-// Verilator lint 配置（--lint-only 时由 tools/sv.py 通过 -f/-W 与 --config 使用）
+// lint 配置（--lint-only 时由 tools/sv.py 以位置参数传入本文件）
+//
+// ⚠️ 本文件的 `//` 注释不要以工具名开头：verilator 会把 `// <工具名> <单词>`
+//    当成遗留元注释解析（例如 `// Verilator lint ...` 里的 "lint" 会被当作
+//    未知指令），报 `Unknown verilator comment` / BADVLTPRAGMA 并让整个文件
+//    被当作 Verilog 源文件，导致 lint 静默失效（5.020 与 5.052 均如此）。
 //
 // `verilator_config` 起头的行是配置指令；文件后缀 .vlt 表示纯配置。
 // 原则：默认开启全部告警；只关掉「与本仓约定冲突」或「由其它工具负责」的规则。

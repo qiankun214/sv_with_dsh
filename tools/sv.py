@@ -771,7 +771,7 @@ def tool_lint(rep: Report, module: str, dry: bool, waivers: list[dict]) -> None:
             *files,
         ]
         rc, out = run(cmd, cwd=f.parent, dry=dry, log=log)
-        n = len(re.findall(r"^.*?:\d+:\d+:", out, re.MULTILINE))
+        n = len(re.findall(r"^.*?:\d+:\d+(?:-\d+)?:", out, re.MULTILINE))
         if dry:
             rep.s("--dry-run：未实际执行风格 lint（未写报告）")
         else:
@@ -974,7 +974,11 @@ def tool_synth(rep: Report, module: str, dry: bool) -> None:
     if dry:
         rep.s("--dry-run：未实际执行综合")
         return
-    cells = re.findall(r"Number of cells:\s+(\d+)", out)
+    # yosys <0.4x 输出 `Number of cells:  N`；新版本 `stat -liberty` 改成列式
+    # `      50   344.08 cells`，两种都要认（否则单元数恒为 None）
+    cells = re.findall(r"Number of cells:\s+(\d+)", out) or re.findall(
+        r"^\s*(\d+)\s+[0-9.]+\s+cells\b", out, re.MULTILINE
+    )
     area_match = re.search(r"Chip area for module '\\?[^']*':\s+([0-9.]+)", out)
     data = {
         "module": module,

@@ -23,3 +23,8 @@
 +explicit-parameter-storage-type
 # case 必须有 default（对应 coding-standard §4.3）
 +case-missing-default
+# 常量/参数命名：coding-standard §1.4 要求 UPPER_SNAKE；
+# verible 默认 localparam_style=CamelCase 与本仓约定冲突，这里显式改为 ALL_CAPS。
+# 注意：同一规则只能写一行（重复行会相互覆盖并告警），多参数也不支持逗号合并；
+# parameter_style 默认已是 CamelCase|ALL_CAPS，无需再配。
++parameter-name-style=localparam_style:ALL_CAPS
