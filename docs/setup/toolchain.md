@@ -1,16 +1,16 @@
 # 工具链安装（Verilator / Yosys / Verible / slang / cocotb）
 
-本仓库**不代装、不自建环境**：这里给出可复制的安装步骤，装完用 `python3 tools/sv.py doctor` 自检。
+优先用仓内一键脚本 `./setup.sh`（用户态 `.tools/` + `.venv/`；系统基础包按需 `sudo apt`，无 sudo 时用 `--no-sudo` 降级）。本文是等价的手工步骤与排障参考；装完用 `python3 tools/sv.py doctor` 自检。
 
 ## 0. 本机现状（已核实，2026-xx 快照）
 
 | 事实 | 影响 |
 |---|---|
 | 无 `verilator` `yosys` `verible-*` `slang` `iverilog` `vcs` `xrun` `spyglass` | 需要用下面的步骤自装 |
-| 无 `make`、`g++`/`gcc`/`clang`/`cc` | **编译型仿真（cocotb + Verilator）跑不了** |
-| `sudo` 被 `no_new_privs` 禁用，apt 装不了包 | 只能用户态解包预编译二进制 |
+| 初始无 `make`、`g++`/`gcc`/`clang`/`cc` | **编译型仿真（cocotb + Verilator）跑不了**；`./setup.sh` 会用 `sudo apt` 装上 `build-essential` |
+| `sudo` 分两种运行方式：**用户自己跑**（脚本按需 `sudo apt`，可弹密码）；**agent 沙箱**里 `NoNewPrivs=1` 会拒绝 sudo | 无 sudo 时用 `--no-sudo`，按 `setup.sh` 头部注释的降级表装（基础包缺失则降级，EDA/PDK 本就不需要 sudo） |
 | 网络可达 github.com / pypi.org | 可以下载发布包 |
-| `python3` 无 pip、无 ensurepip；但 `python3-yaml` 6.0.3 已存在 | 结构/追溯门禁开箱可用；Python 包需另装 |
+| `python3` 无 pip、无 ensurepip；但 `python3-yaml` 6.0.3 已存在 | 结构/追溯门禁开箱可用；`setup.sh` 用 `sudo apt install python3-venv python3-pip` 补齐 venv 回退路径 |
 | `tar` `curl` `wget` `git` 可用；**无 `unzip`** | 一律下载 `.tgz`/`.tar.gz`，别下 `.zip` |
 
 关键区分：**lint 与综合不需要编译器**（Verilator `--lint-only`、Yosys、Verible、slang 都是预编译二进制或纯解析），**只有 cocotb 功能仿真需要 `make` + `g++`**。
@@ -88,10 +88,10 @@ verible-verilog-lint --version
 
 ## 4. 编译器（仅 cocotb 功能仿真需要）
 
-`make` 与 `g++` 缺失时，`gate 05` 会跳过并提示。可选路径：
+`make` 与 `g++` 缺失时，`gate 05` 会跳过并提示（soft skip，不影响 lint 与综合）。
 
-- 有提权/有 sudo 的机器：`sudo apt install build-essential`；
-- 本机（无 sudo）：换一台机器、用容器，或用用户态工具链（conda/nix 等，未在本仓验证）；
+- `./setup.sh` 已把 `build-essential`（make / g++ / gcc）列入 apt 基础包，有 sudo 时自动装好；
+- 无 sudo：换一台机器、用容器，或用户态工具链（conda/nix 等，未在本仓验证）；也可显式 `./setup.sh --no-sudo`；
 - 只要 lint + 综合：**什么都不用装**，第 1、2 节够了。
 
 ## 5. 环境变量速查
@@ -132,3 +132,12 @@ python3 tools/sv.py doctor
 ```bash
 python3 tools/sv.py gate all
 ```
+
+## 7. 排障
+
+| 现象 | 说明与处理 |
+|---|---|
+| `apt` 刷 `Failed to get properties: Transport endpoint is not connected` / `Failed to connect to system scope bus via local transport: Connection refused` | 这是 `systemd` 包的 **dpkg 触发器**在连 system/dbus bus，容器/WSL 里没有在跑的 dbus 就会刷这两行。**包其实已装好**（`dpkg -l bzip2 build-essential python3-venv python3-pip` 看 `ii`，`dpkg --audit` 无输出）。`setup.sh` 按「能力」复核，不会因此误报。要静默：`sudo apt-get -o Dpkg::Options::=--no-triggers install -y ...`（触发器推迟到下次 apt）。 |
+| `下载 micromamba.tar.bz2` 极慢（几 KB/s，十几分钟） | 官方 `micro.mamba.pm` 抖动很大。`setup.sh` 已优先改从 conda-forge 渠道取同版本的 `micromamba` conda 包（与 EDA 同源，tuna 实测 3.5–16 MB/s），失败才退回官方 API。版本可用 `MICROMAMBA_VER=2.9.0-0` 覆盖；渠道用 `--mirror` 切换。 |
+| `micromamba: No such file or directory`（但文件确实在） | 旧版脚本的老问题（进度输出污染了 `$(...)` 回传值），现已修掉：`ensure_micromamba` 的进度一律走 stderr。 |
+| `.venv` 明明存在，却报 `No module named 'yaml'` | 残缺 venv 空壳。脚本的就绪判定已包含 `import yaml, cocotb` 自检，缺包会自动重建；也可 `./setup.sh --force`。 |

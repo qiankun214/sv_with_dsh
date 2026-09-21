@@ -101,7 +101,7 @@
 
 | 决策 | 理由（实测数据） |
 |---|---|
-| **不用 apt** | `apt-get install` 需要 root，而本机 `NoNewPrivs=1` 封掉了 sudo；且版本也不够：verible **无包**、verilator **5.020 < cocotb 要求的 5.036**、yosys **0.33 读不了本仓 RTL**（`syntax error, unexpected TOK_INT`）。`apt-get download`+`dpkg-deb -x` 虽免 root，但同样受版本限制。 |
+| **基础包走 apt，EDA 不走 apt** | 基础包（`bzip2` / `build-essential` / `python3-venv` / `python3-pip`）apt 有且无版本风险，`setup.sh` 用 `sudo apt-get` 装。EDA 仍走 conda-forge：Ubuntu 26.04 索引里 verible **无包**、verilator 只有 **5.032 < cocotb 要求的 5.036**（且 `tools/sv.py` 的 gate 05 硬依赖 verilator、无 icarus 分支），yosys 0.52 未在本仓 RTL 上验证。无 sudo 时按 `setup.sh` 头部注释的降级表走（`--no-sudo`）。 |
 | **不用 GitHub 发布包** | 直连 `github.com` 发布包实测 **约 3 KB/s**（verible 17 MB 下了一刻钟没下完）。代理可用：`gh-proxy.com` 953 KB/s、`ghfast.top` 736 KB/s；`hub.gitmirror.com`/`ghproxy.cc`/`gh.llkk.cc` 不可用。 |
 | **用 conda-forge + 清华镜像** | `https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge` 实测 **47 MB/s**，一个渠道同时提供 verilator / verible / yosys，装进单环境 `.tools/eda`。 |
 | **PDK 用 `litex-hub/open_pdks.sky130a`** | conda-forge 上没有 PDK 包（`open_pdks`/`sky130`/`volare` 均 404）；TUNA/BFSU 不镜像 litex-hub；但官方 `conda.anaconda.org` 实测 **12.5 MB/s**，1.2 GB 约 2 分钟。布局正好是 `sv.py` 的 `find_sky130` 期望的 `sky130A/libs.ref/sky130_fd_sc_hd/{lib,verilog}`。 |
@@ -205,8 +205,9 @@ TC 在 `regress.yaml` 无对应用例、waiver 过期 —— 均应 hard fail。
 ## 8. 接手步骤
 
 ```bash
-# 0) 拿到仓库后先建环境（用户态，无需 sudo）
+# 0) 拿到仓库后先建环境（系统基础包按需 sudo apt；EDA/PDK 仍是用户态 conda）
 ./setup.sh --with-pdk          # .venv + .tools/eda + .tools/pdk；幂等，可重复跑
+# 无 sudo（agent 沙箱 / CI）时：./setup.sh --no-sudo --with-pdk
 source .tools/env.sh           # PATH + PDK_ROOT
 `python3 tools/sv.py doctor` 期望：**工具 7 项 ok / slang 缺失，PDK 3 项 ok**。
 
@@ -214,7 +215,7 @@ source .tools/env.sh           # PATH + PDK_ROOT
 python3 tools/sv.py gate all
 ```
 
-`setup.sh` 参数：`--with-pdk`、`--mirror tuna|bfsu|official|<url>`、`--force`。
+`setup.sh` 参数：`--with-pdk`、`--no-sudo`（禁用 apt，走无 sudo 降级路径）、`--mirror tuna|bfsu|official|<url>`、`--force`。
 
 ## 9. 第二步的施工清单（`rr_arbiter`）
 

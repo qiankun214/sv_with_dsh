@@ -61,7 +61,7 @@ python3 tools/sv.py trace                        # 重算追溯覆盖并更新 I
 | 样例模块（参数化轮询仲裁器 `rr_arbiter`） | ⏳ 待填（第二步） |
 | lint / 综合 / cocotb 三条链的本机实跑 | ⏳ 待使用者装完工具链后验证 |
 
-本机（WSL）当前 **没有** make / g++ / gcc，也没有任何 EDA 工具与 PDK，因此：
+本机（WSL）初始 **没有** make / g++ / gcc，也没有任何 EDA 工具与 PDK；跑 `./setup.sh --with-pdk` 可一键补齐（系统基础包按需 `sudo apt`，EDA 与 PDK 走用户态 conda；无 sudo 用 `--no-sudo` 降级），因此：
 
 - **可实跑**：结构 + 追溯门禁（纯 Python，只需 PyYAML，本机已有 `python3-yaml`）。
 - **未验证**：`gate 04`（lint）、`gate 05`（cocotb 仿真）、`gate 06`（Yosys + sky130 综合）三条链的脚本未经真实工具执行——装完工具链后请跑 `doctor` 与 `gate all` 回报结果。
