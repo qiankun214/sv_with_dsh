@@ -1,0 +1,12 @@
+{
+  "head": {"text": "Scenario 3: req_i goes all-zero then resumes", "tick": 0},
+  "foot": {"text": "1 clk cycle = 2 ticks; no grant while req_i=0"},
+  "config": {"hscale": 1.8},
+  "signal": [
+    {"name": "clk", "wave": "101010101010"},
+    {"name": "rst_n", "wave": "1"},
+    {"name": "req_i", "wave": "2.2.2.2.2.2.", "data": ["0011", "0000", "0000", "0000", "0010", "0010"]},
+    {"name": "grant_o", "wave": "2.2.2.2.2.2.", "data": ["0001", "0000", "0000", "0000", "0010", "0010"]},
+    {"name": "grant_valid_o", "wave": "1.0.....1..."}
+  ]
+}

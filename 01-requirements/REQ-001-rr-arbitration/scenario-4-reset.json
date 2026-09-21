@@ -1,0 +1,12 @@
+{
+  "head": {"text": "Scenario 4: rst_n asserted then released (req_i=1111)", "tick": 0},
+  "foot": {"text": "1 clk cycle = 2 ticks; outputs forced 0 during reset"},
+  "config": {"hscale": 1.8},
+  "signal": [
+    {"name": "clk", "wave": "1010101010"},
+    {"name": "rst_n", "wave": "1.0...1..."},
+    {"name": "req_i", "wave": "2.2.2.2.2.", "data": ["1111", "1111", "1111", "1111", "1111"]},
+    {"name": "grant_o", "wave": "2.2.2.2.2.", "data": ["0001", "0000", "0000", "0001", "0010"]},
+    {"name": "grant_valid_o", "wave": "1.0...1..."}
+  ]
+}

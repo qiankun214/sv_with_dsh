@@ -1,0 +1,12 @@
+{
+  "head": {"text": "Scenario 1: req_i held at 4'b0100", "tick": 0},
+  "foot": {"text": "1 clk cycle = 2 ticks; grant_valid_o stays high"},
+  "config": {"hscale": 1.8},
+  "signal": [
+    {"name": "clk", "wave": "10101010"},
+    {"name": "rst_n", "wave": "1"},
+    {"name": "req_i", "wave": "2.2.2.2.", "data": ["0100", "0100", "0100", "0100"]},
+    {"name": "grant_o", "wave": "2.2.2.2.", "data": ["0100", "0100", "0100", "0100"]},
+    {"name": "grant_valid_o", "wave": "1"}
+  ]
+}

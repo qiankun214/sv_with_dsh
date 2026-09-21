@@ -8,6 +8,12 @@ description: 阶段⑥检查汇总：跑 lint/格式/综合/覆盖率，把证�
 把「代码质量与可实现性」的证据固化下来：`06-checks/<module>/CHK-<short>-<nnn>-*.md` + `06-checks/reports/<module>/`。
 上游是同模块已 approved 的 `VP-*`。
 
+## 写文档前：先调用 `grill-me` 讨论
+
+动笔前先按 `grill-me`（执行 `grilling` 技能）用 `ask_user_question` 卡片与用户把本阶段的边界、取舍、待定项讨论清楚：
+事实自己查（模板/上游产物/门禁规则），推荐项放第一并标「（推荐）」，讨论到无未决问题且用户确认理解一致；
+结论写进产物正文与变更历史，规范级结论回流到本技能或模板。详见 `spec-to-rtl` 与 `spec-to-rtl-req`。
+
 ## 步骤
 
 ```bash
