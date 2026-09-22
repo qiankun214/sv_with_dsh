@@ -56,6 +56,8 @@
 | `.dsh/skills/spec-to-rtl/SKILL.md` | 新增「写文档前先 grill-me」一节，并指向 REQ 的固化约定 |
 | `.dsh/skills/spec-to-rtl-verify/SKILL.md` | 新增「验收标准在本阶段扇出」一节 + 完成定义加扇出项 |
 | `.dsh/skills/spec-to-rtl-{arch,design,verify,check}/SKILL.md` | 各加一节「写文档前先 grill-me」 |
+| `.dsh/skills/spec-to-rtl-arch/SKILL.md` | 改为**强制**由 `grill-me` 讨论产出：新增「完善」判定（无 TODO/占位、数字有值、模块名=目录名、图件入同名目录）；补全必填小节表；**修掉「立即建模块骨架」指令**（会让 `gate 02` hard fail，骨架改到 ③ 与 DES 一起建） |
+| `.dsh/skills/spec-to-rtl-design/SKILL.md` | 同样改为**强制** `grill-me` 产出 + 「完善」判定（端口/参数/边界/复位逐条确定、`implements` 完整、无「实现时再定」）；补「时序假设/变更历史」小节；写明骨架与 DES 一次走完 |
 | `tools/templates/VP.template.md` | 新增「验收标准（从 REQ 扇出）」表 |
 | `INDEX.md` | 由 `sv.py trace` 重算（REQ-001 `in_review`、ARCH-001 `draft`） |
 
@@ -87,8 +89,8 @@ python3 tools/sv.py trace            # 写 INDEX.md，同时报同一个 hard fa
 ## 4. 未完成 / 下一步（按顺序）
 
 1. **人类放行 `REQ-001`**：在 front-matter 写 `status: approved` + 真实 `reviewer` + `date`（样例数据要如实标注为样例评审），然后重跑 `gate 01` / `gate 02` 与 `trace`。
-2. **复核并放行 `ARCH-001`**：重点核对模块划分（单模块 `rr_arbiter`）、无软件的接口结论、面积/时序预算；顺带决定 **ARCH 框图的布局**——
-   目前仍在 `docs/diagrams/arch-001-rr-arbiter.md`，若要与 REQ 统一，应移到 `02-architecture/ARCH-001-arb-arch/`（或直接改成 WaveDrom 图源+SVG）。
+2. **复核并放行 `ARCH-001`**：按 ② 技能新规，先 `grill-me` 讨论再改文档；重点核对模块划分（单模块 `rr_arbiter`）、无软件的接口结论、面积/时序预算；
+   并把 **ARCH 框图布局**改到与本文件同名的目录 `02-architecture/ARCH-001-arb-arch/`（现仍在 `docs/diagrams/arch-001-rr-arbiter.md`，不符合新规则）。
 3. **③ 详细设计**：`new module rr_arbiter --short rra` → `new des` → 写 `DES-rra-001`（端口表、指针/掩码/两段优先级编码、边界条件）→ 人类放行 → `gate 03 --module rr_arbiter`。
    ⚠️ 见 §5 的「模块骨架时序坑」。
 4. **④ RTL**：写 `04-rtl/rr_arbiter/rr_arbiter.sv`（端口逐条对照 DES 端口表；顶层模块名 = 目录名）→ `gate 04 --module rr_arbiter`。
@@ -156,4 +158,5 @@ python3 tools/sv.py gate all
 | 2026-09-19 | 重写交接文档（工具链就绪 + gate 04/05/06 实跑） | `d3837c6` |
 | 2026-09-21 | 修 `setup.sh`（sudo/apt 主路径等） | `d25e831` |
 | 2026-09-21 | 第二步启动：`REQ-001` 样例（多轮评审返工）+ `ARCH-001` 草稿；写作约定固化进模板/清单/技能；新增 WaveDrom 图件工具链与同名目录布局；本交接文档 | `f2395aa` |
-| 2026-09-21 | 按评审意见把**验收标准从 ① 扇出到 ⑤**：REQ 只保留 IPO，删除「验收标准」节；⑤ 的 `VP-*` 负责从 `F*`/接口不变式/时序场景扇出验收标准与 `TC-*`；合同文件同步 | 本轮提交 |
+| 2026-09-21 | 按评审意见把**验收标准从 ① 扇出到 ⑤**：REQ 只保留 IPO，删除「验收标准」节；⑤ 的 `VP-*` 负责从 `F*`/接口不变式/时序场景扇出验收标准与 `TC-*`；合同文件同步 | `fe6542d` |
+| 2026-09-21 | 按评审意见把 ②③ 技能改为**强制由 `grill-me` 讨论产出完善文档**（附「完善」判定），并修掉 ② 技能里会让 `gate 02` hard fail 的建骨架指令 | 本轮提交 |
