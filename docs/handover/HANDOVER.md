@@ -15,7 +15,7 @@
 ## 1. 一句话现状
 
 流程骨架与工具链（第一步）早已就绪；本轮开始第二步，写完了 **`rr_arbiter` 样例的功能点 `REQ-001`**
-（含软硬件接口、硬件接口三段式、5 张 WaveDrom 时序图、AC 判据表），并把评审过程中形成的**写作约定固化进了模板与技能**。
+（含软硬件接口、硬件接口三段式、5 张 WaveDrom 时序图；**只含 IPO，验收标准已扇出到 ⑤**），并把评审过程中形成的**写作约定固化进了模板与技能**。
 **REQ-001 尚未放行**，因此 ② 及其之后的产物都停在门口。
 
 ## 2. 本轮（2026-09-21）做了什么
@@ -24,14 +24,15 @@
 
 | 产物 | 状态 | 说明 |
 |---|---|---|
-| `01-requirements/REQ-001-rr-arbitration.md` | `in_review` | 轮询仲裁功能点：F1~F8、软硬件接口、硬件接口三段式、AC-1~AC-8 判据表 |
+| `01-requirements/REQ-001-rr-arbitration.md` | `in_review` | 轮询仲裁功能点：**只有 IPO**——输入/输出接口、F1~F8 处理行为、约束与 non-goals（验收标准已扇出到 ⑤） |
 | `01-requirements/REQ-001-rr-arbitration/` | — | 与 md **同名目录**：5 组 WaveDrom 图源 `.json` + 渲染 `.svg` + `README.md` |
 | `02-architecture/ARCH-001-arb-arch.md` | `draft` | 仲裁器系统方案：单模块 `rr_arbiter`、组合授权 + 指针寄存器、面积预算 ≤150 cells |
 | `docs/diagrams/arch-001-rr-arbiter.md` | — | ARCH-001 的框图（Mermaid + ASCII），**布局尚未按「图伴 md」规则统一**（见 §4） |
 
 ### 2.2 固化下来的写作约定（本轮评审沉淀，已写进技能与模板）
 
-1. **REQ 章节顺序固定**：背景与目标 → 功能描述（`F*`）→ 软硬件接口 → 硬件接口 → 约束 → 验收标准（AC 判据表）→ non-goals → 变更历史。
+1. **REQ 只写 IPO**：背景与目标 → 功能描述（`F*`）→ 软硬件接口 → 硬件接口 → 约束 → non-goals → 变更历史；
+   **不得出现验收标准 / AC 编号 / 测试判据**。
 2. **软硬件接口先给结论**：本模块无软件接口 → **一句结论** + 软件的唯一影响（综合期参数）+「要加须另立 `REQ-*`」边界，**不列全「无」的表**；**有**软件接口才详细描述（寄存器/总线/中断/地址空间/访问属性 + `REGMAP-*`）。
 3. **硬件接口三段式**（顺序不可变）：
    - ① **参数表**：默认值 / 合法范围 / 含义；
@@ -40,7 +41,7 @@
      **不得**写内部实现与功能映射（状态机、指针/计数器、算法、公平性推导、「给什么输入出什么输出」），
      **不得**写组合路径延迟数字（如 `≤5 ns`）；场景小标题内容固定 = **WaveDrom 图 + 文字说明**（需要时加**只列端口信号**的逐拍表）。
 4. **时序图只画端口信号**，不含内部状态；图源 `.json` 与渲染产物 `.svg` 都放 `<阶段>/<产物文件名去扩展名>/`（与 md **同名、同级**的目录），一个场景一对同名文件，两件都入 `artifacts`。
-5. **F 与 AC 分工**：`F*` 是行为契约，`AC-*` 是可观测判据（表格：覆盖哪个 F / 激励 / 观测点 / 量化判据），**AC 不复述 F**。
+5. **验收标准扇出到 ⑤**：① 只写「什么是对的」（`F*` + 接口不变式），「什么算通过」（激励/观测点/量化判据 + `TC-*`）由 ⑤ 从 `F*`、接口不变式与时序场景扇出，写进 `VP-*`。
 6. **返工留痕**：内容变更即作废原放行（`approved` → `in_review`，清空 `reviewer`），变更历史写清改了什么、为什么、影响谁。
 7. **写文档前先 `grill-me`**：任何阶段文档动笔前，先用 `grill-me`（执行 `grilling` 技能）以 `ask_user_question` 卡片与用户做质询式讨论；事实自己查，结论写进产物，规范级结论回流技能/模板。
 
@@ -48,12 +49,14 @@
 
 | 文件 | 本轮改动 |
 |---|---|
-| `tools/templates/REQ.template.md` | 三节重写：软硬件接口（结论式）、硬件接口（三段式 + 场景固定内容）、验收标准（AC 判据表 + F/AC 分工）；新增图层布局与三个 WaveDrom 坑 |
-| `standards/review-checklist.md` | §B 新增：软硬件接口结论式、硬件接口三段式、时序图只画端口、AC 不复述 F |
+| `tools/templates/REQ.template.md` | 重写为「只写 IPO」：软硬件接口（结论式）、硬件接口（三段式 + 场景固定内容）、删除验收标准节；新增图层布局与三个 WaveDrom 坑 |
+| `standards/review-checklist.md` | §B 新增：软硬件接口结论式、硬件接口三段式、时序图只画端口、文档只有 IPO；§F 新增「验收标准已从 REQ 扇出」 |
 | `01-requirements/README.md` | 「正文该写什么」表更新 + 新增「时序图的布局约定」 |
 | `.dsh/skills/spec-to-rtl-req/SKILL.md` | 新增「写文档前先 grill-me」与「本仓固化的写作约定」两节；写作要求表更新；完成定义加「已 grill-me 讨论」 |
 | `.dsh/skills/spec-to-rtl/SKILL.md` | 新增「写文档前先 grill-me」一节，并指向 REQ 的固化约定 |
+| `.dsh/skills/spec-to-rtl-verify/SKILL.md` | 新增「验收标准在本阶段扇出」一节 + 完成定义加扇出项 |
 | `.dsh/skills/spec-to-rtl-{arch,design,verify,check}/SKILL.md` | 各加一节「写文档前先 grill-me」 |
+| `tools/templates/VP.template.md` | 新增「验收标准（从 REQ 扇出）」表 |
 | `INDEX.md` | 由 `sv.py trace` 重算（REQ-001 `in_review`、ARCH-001 `draft`） |
 
 ### 2.4 WaveDrom 图件工具链（本次新增）
@@ -89,7 +92,7 @@ python3 tools/sv.py trace            # 写 INDEX.md，同时报同一个 hard fa
 3. **③ 详细设计**：`new module rr_arbiter --short rra` → `new des` → 写 `DES-rra-001`（端口表、指针/掩码/两段优先级编码、边界条件）→ 人类放行 → `gate 03 --module rr_arbiter`。
    ⚠️ 见 §5 的「模块骨架时序坑」。
 4. **④ RTL**：写 `04-rtl/rr_arbiter/rr_arbiter.sv`（端口逐条对照 DES 端口表；顶层模块名 = 目录名）→ `gate 04 --module rr_arbiter`。
-5. **⑤ 自测**：`VP-rra-001`（`test_cases` 覆盖 AC-1~AC-8）+ `05-verification/rr_arbiter/{run_tests.py,regress.yaml,tests/}` → `gate 05` → 人类放行。
+5. **⑤ 自测**：`VP-rra-001`——先把验收标准从 `REQ-001` 的 `F1~F8`/接口不变式 `I1~I4`/5 个时序场景**扇出成表**，再落成 `test_cases` 的 `TC-*`；配 `05-verification/rr_arbiter/{run_tests.py,regress.yaml,tests/}` → `gate 05` → 人类放行。
 6. **⑥ 检查**：`CHK-rra-001` + `06-checks/reports/rr_arbiter/{lint,synth,cov}/`，数字与报告一致 → `gate 06` → 人类放行。
 7. **收尾**：`trace` 更新 `INDEX.md`，交付摘要列出未执行项与仍为 `draft`/`in_review` 的产物。
 
@@ -152,4 +155,5 @@ python3 tools/sv.py gate all
 | 2026-09-19 | 工具链接线修复 + `setup.sh` 一键环境构建 | `e131c48` |
 | 2026-09-19 | 重写交接文档（工具链就绪 + gate 04/05/06 实跑） | `d3837c6` |
 | 2026-09-21 | 修 `setup.sh`（sudo/apt 主路径等） | `d25e831` |
-| 2026-09-21 | 第二步启动：`REQ-001` 样例（5 轮评审返工）+ `ARCH-001` 草稿；写作约定固化进模板/清单/技能；新增 WaveDrom 图件工具链与同名目录布局；本交接文档 | 本轮提交 |
+| 2026-09-21 | 第二步启动：`REQ-001` 样例（多轮评审返工）+ `ARCH-001` 草稿；写作约定固化进模板/清单/技能；新增 WaveDrom 图件工具链与同名目录布局；本交接文档 | `f2395aa` |
+| 2026-09-21 | 按评审意见把**验收标准从 ① 扇出到 ⑤**：REQ 只保留 IPO，删除「验收标准」节；⑤ 的 `VP-*` 负责从 `F*`/接口不变式/时序场景扇出验收标准与 `TC-*`；合同文件同步 | 本轮提交 |
