@@ -1,12 +1,12 @@
-# 交接文档 — spec-to-RTL 流程骨架 + rr_arbiter 样例（阶段①进行中）
+# 交接文档 — spec-to-RTL 流程骨架 + rr_arbiter 样例（阶段②进行中）
 
 | 项 | 值 |
 |---|---|
-| 生成日期 | 2026-09-21 |
+| 生成日期 | 2026-09-23 |
 | 仓库 | `/home/alpaca/sv` ↔ <https://github.com/qiankun214/sv_with_dsh>（public，默认分支 `main`） |
 | 上一版交接文档 | 提交 `d3837c6`（2026-09-19）的内容；本文件取代它，旧版仍在 git 历史里 |
-| 本次提交 | 见 `git log docs/handover/`（本轮提交信息：`REQ-001 样例 + 写作约定固化 + 交接文档`） |
-| 进度 | **① 已放行**（`REQ-001` → `approved`，样例评审，2026-09-23）；`ARCH-001` 草稿待按 ② 新规（grill-me）复核后放行；③~⑥ 未开始 |
+| 本次提交 | 见 `git log docs/handover/`；历次改动见本文件 §8 变更记录 |
+| 进度 | **① 已放行**（`REQ-001` → `approved`，样例评审，2026-09-23）；**② `ARCH-001` 已按 `grill-me` 讨论重写、待人类放行**；③~⑥ 未开始 |
 
 > 本文件取代上一版交接文档。凡与旧版冲突处，以本版为准。
 
@@ -26,8 +26,8 @@
 |---|---|---|
 | `01-requirements/REQ-001-rr-arbitration.md` | **`approved`** | 轮询仲裁功能点：**只有 IPO**——输入/输出接口、F1~F8 处理行为、约束与 non-goals（验收标准扇出到 ⑤）；2026-09-23 放行，reviewer `qiankun214（样例评审）` |
 | `01-requirements/REQ-001-rr-arbitration/` | — | 与 md **同名目录**：5 组 WaveDrom 图源 `.json` + 渲染 `.svg` + `README.md` |
-| `02-architecture/ARCH-001-arb-arch.md` | `draft` | 仲裁器系统方案：单模块 `rr_arbiter`、组合授权 + 指针寄存器、面积预算 ≤150 cells |
-| `docs/diagrams/arch-001-rr-arbiter.md` | — | ARCH-001 的框图（Mermaid + ASCII），**布局尚未按「图伴 md」规则统一**（见 §4） |
+| `02-architecture/ARCH-001-arb-arch.md` | `draft`（待放行） | 仲裁器系统方案：**整体架构 → 功能分解为模块（≤500 行判据）→ 模块间连接**；确定单模块 `rr_arbiter`、不拆子模块；面积预算 ≤150 cells；回归 `NUM_REQ=2/4/8`、综合只按 `NUM_REQ=4`、验证只做顶层黑盒 |
+| `02-architecture/ARCH-001-arb-arch/` | — | 与 md **同名目录**：`block-diagram.md`（模块级 Mermaid + ASCII 框图）+ `README.md`（旧位置 `docs/diagrams/` 已删除） |
 
 ### 2.2 固化下来的写作约定（本轮评审沉淀，已写进技能与模板）
 
@@ -44,6 +44,8 @@
 5. **验收标准扇出到 ⑤**：① 只写「什么是对的」（`F*` + 接口不变式），「什么算通过」（激励/观测点/量化判据 + `TC-*`）由 ⑤ 从 `F*`、接口不变式与时序场景扇出，写进 `VP-*`。
 6. **返工留痕**：内容变更即作废原放行（`approved` → `in_review`，清空 `reviewer`），变更历史写清改了什么、为什么、影响谁。
 7. **写文档前先 `grill-me`**：任何阶段文档动笔前，先用 `grill-me`（执行 `grilling` 技能）以 `ask_user_question` 卡片与用户做质询式讨论；事实自己查，结论写进产物，规范级结论回流技能/模板。
+8. **② 只回答三件事**（2026-09-23 grill-me 结论）：**整体架构 → 功能分解为模块 → 模块间连接**。目标是**把功能分解为每个 ≤500 行 RTL 的 module**（超过必须继续拆，远低于则不为拆而拆）；
+   **不设计 module 内部结构**（内部功能块/FSM/数据通路/寄存器清单属 ③），框图**只画到 module 边界**；**不重复抄写 `REQ-*` 的端口表**（接口以 ① 为唯一权威）。
 
 ### 2.3 约定回流到了哪些文件
 
@@ -59,7 +61,12 @@
 | `.dsh/skills/spec-to-rtl-arch/SKILL.md` | 改为**强制**由 `grill-me` 讨论产出：新增「完善」判定（无 TODO/占位、数字有值、模块名=目录名、图件入同名目录）；补全必填小节表；**修掉「立即建模块骨架」指令**（会让 `gate 02` hard fail，骨架改到 ③ 与 DES 一起建） |
 | `.dsh/skills/spec-to-rtl-design/SKILL.md` | 同样改为**强制** `grill-me` 产出 + 「完善」判定（端口/参数/边界/复位逐条确定、`implements` 完整、无「实现时再定」）；补「时序假设/变更历史」小节；写明骨架与 DES 一次走完 |
 | `tools/templates/VP.template.md` | 新增「验收标准（从 REQ 扇出）」表 |
-| `INDEX.md` | 由 `sv.py trace` 重算（REQ-001 `in_review`、ARCH-001 `draft`） |
+| `tools/templates/ARCH.template.md` | 重写为「整体架构 / 功能分解为模块（≤500 行）/ 模块间连接」结构；注明不写内部结构、不抄端口表、图件入同名目录 |
+| `tools/templates/IFACE.template.md` | 波形图改为「图源+渲染放与 md 同名同级目录、用 WaveDrom」 |
+| `02-architecture/README.md` | 更新正文要求表、图件布局、front-matter 示例；写明 ≤500 行分解目标 |
+| `standards/review-checklist.md` §C | 新增：≤500 行分解、② 不写内部结构、模块间连接无歧义、不重复端口表、参数档位、placeholder 标注 |
+| `.dsh/skills/spec-to-rtl-arch/SKILL.md` | 按 grill-me 结论改为「整体架构/功能分解为模块（≤500 行）/模块间连接」；「完善」判定同步；禁止「为拆而拆」「定义内部结构」「抄端口表」 |
+| `INDEX.md` | 由 `sv.py trace` 重算（REQ-001 `approved`、ARCH-001 `draft`） |
 
 ### 2.4 WaveDrom 图件工具链（本次新增）
 
@@ -89,9 +96,9 @@ python3 tools/sv.py trace            # 通过；仅 1 条预期 warn：REQ-001 �
 ## 4. 未完成 / 下一步（按顺序）
 
 1. ✅ **已完成（2026-09-23）**：人类放行 `REQ-001`（`status: approved` + `reviewer: qiankun214（样例评审）` + `date`），`gate 01`/`gate 02`/`trace` 均已通过。
-2. **复核并放行 `ARCH-001`**：按 ② 技能新规，先 `grill-me` 讨论再改文档；重点核对模块划分（单模块 `rr_arbiter`）、无软件的接口结论、面积/时序预算；
-   并把 **ARCH 框图布局**改到与本文件同名的目录 `02-architecture/ARCH-001-arb-arch/`（现仍在 `docs/diagrams/arch-001-rr-arbiter.md`，不符合新规则）。
-3. **③ 详细设计**：`new module rr_arbiter --short rra` → `new des` → 写 `DES-rra-001`（端口表、指针/掩码/两段优先级编码、边界条件）→ 人类放行 → `gate 03 --module rr_arbiter`。
+2. **放行 `ARCH-001`**：已按 `grill-me` 讨论重写（单模块、≤500 行分解、模块间连接为「无」、不抄端口表、框图移入同名目录），`gate 02` 通过；
+   待人类把 `status` 置 `approved` + `reviewer` + `date`。放行前请核对：面积预算 ≤150 cells、回归 `NUM_REQ=2/4/8`、综合只按 `NUM_REQ=4`、验证只做顶层黑盒。
+3. **③ 详细设计**：`new module rr_arbiter --short rra` → `new des` → 写 `DES-rra-001`——**模块内部结构在本阶段定义**（端口表、指针寄存器、掩码生成、两段优先级编码、输出门控、边界条件、每个寄存器复位值）→ 人类放行 → `gate 03 --module rr_arbiter`。
    ⚠️ 见 §5 的「模块骨架时序坑」。
 4. **④ RTL**：写 `04-rtl/rr_arbiter/rr_arbiter.sv`（端口逐条对照 DES 端口表；顶层模块名 = 目录名）→ `gate 04 --module rr_arbiter`。
 5. **⑤ 自测**：`VP-rra-001`——先把验收标准从 `REQ-001` 的 `F1~F8`/接口不变式 `I1~I4`/5 个时序场景**扇出成表**，再落成 `test_cases` 的 `TC-*`；配 `05-verification/rr_arbiter/{run_tests.py,regress.yaml,tests/}` → `gate 05` → 人类放行。
@@ -160,4 +167,5 @@ python3 tools/sv.py gate all
 | 2026-09-21 | 第二步启动：`REQ-001` 样例（多轮评审返工）+ `ARCH-001` 草稿；写作约定固化进模板/清单/技能；新增 WaveDrom 图件工具链与同名目录布局；本交接文档 | `f2395aa` |
 | 2026-09-21 | 按评审意见把**验收标准从 ① 扇出到 ⑤**：REQ 只保留 IPO，删除「验收标准」节；⑤ 的 `VP-*` 负责从 `F*`/接口不变式/时序场景扇出验收标准与 `TC-*`；合同文件同步 | `fe6542d` |
 | 2026-09-21 | 按评审意见把 ②③ 技能改为**强制由 `grill-me` 讨论产出完善文档**（附「完善」判定），并修掉 ② 技能里会让 `gate 02` hard fail 的建骨架指令 | `8780bd2` |
-| 2026-09-23 | **放行 `REQ-001`**（`approved`，样例评审）；`gate 01`/`gate 02`/`trace` 通过；② 解锁 | 本轮提交 |
+| 2026-09-23 | **放行 `REQ-001`**（`approved`，样例评审）；`gate 01`/`gate 02`/`trace` 通过；② 解锁 | `3d12c72` |
+| 2026-09-23 | **② 的 `grill-me` 讨论 + `ARCH-001` 重写**：确定单模块（不拆子模块）、② 目标是把功能分解为 ≤500 行 RTL 的 module、模块内部结构留给 ③、不重复 REQ 端口表、框图只到模块边界并移入同名目录；回归 `NUM_REQ=2/4/8`、综合只按 4、验证只做顶层黑盒；合同文件（ARCH 模板/②README/评审清单 §C/IFACE 模板/②技能）同步 | 本轮提交 |
