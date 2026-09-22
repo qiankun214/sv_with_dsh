@@ -55,16 +55,17 @@
 | `standards/review-checklist.md` | §B 新增：软硬件接口结论式、硬件接口三段式、时序图只画端口、文档只有 IPO；§F 新增「验收标准已从 REQ 扇出」 |
 | `01-requirements/README.md` | 「正文该写什么」表更新 + 新增「时序图的布局约定」 |
 | `.dsh/skills/spec-to-rtl-req/SKILL.md` | 新增「写文档前先 grill-me」与「本仓固化的写作约定」两节；写作要求表更新；完成定义加「已 grill-me 讨论」 |
-| `.dsh/skills/spec-to-rtl/SKILL.md` | 新增「写文档前先 grill-me」一节，并指向 REQ 的固化约定 |
+| `.dsh/skills/spec-to-rtl/SKILL.md` | 新增「写文档前先 grill-me」一节，并指向 REQ 的固化约定；
+  2026-09-23 再新增「**文档写作通则**」：只写本阶段新增结论、上游用引用标记不重述、通用约定进技能/模板、不写废话 |
 | `.dsh/skills/spec-to-rtl-verify/SKILL.md` | 新增「验收标准在本阶段扇出」一节 + 完成定义加扇出项 |
 | `.dsh/skills/spec-to-rtl-{arch,design,verify,check}/SKILL.md` | 各加一节「写文档前先 grill-me」 |
 | `.dsh/skills/spec-to-rtl-arch/SKILL.md` | 改为**强制**由 `grill-me` 讨论产出：新增「完善」判定（无 TODO/占位、数字有值、模块名=目录名、图件入同名目录）；补全必填小节表；**修掉「立即建模块骨架」指令**（会让 `gate 02` hard fail，骨架改到 ③ 与 DES 一起建） |
 | `.dsh/skills/spec-to-rtl-design/SKILL.md` | 同样改为**强制** `grill-me` 产出 + 「完善」判定（端口/参数/边界/复位逐条确定、`implements` 完整、无「实现时再定」）；补「时序假设/变更历史」小节；写明骨架与 DES 一次走完 |
 | `tools/templates/VP.template.md` | 新增「验收标准（从 REQ 扇出）」表 |
-| `tools/templates/ARCH.template.md` | 重写为「整体架构 / 功能分解为模块（≤500 行）/ 模块间连接」结构；注明不写内部结构、不抄端口表、图件入同名目录 |
+| `tools/templates/ARCH.template.md` | 改为精简结构：方案概述 / **功能分解为模块（≤500 行）** / 模块间连接 / 上游引用（不重述）/ 资源预算 / 被否方案；注明不写内部结构、不抄端口表、图件入同名目录 |
 | `tools/templates/IFACE.template.md` | 波形图改为「图源+渲染放与 md 同名同级目录、用 WaveDrom」 |
-| `02-architecture/README.md` | 更新正文要求表、图件布局、front-matter 示例；写明 ≤500 行分解目标 |
-| `standards/review-checklist.md` §C | 新增：≤500 行分解、② 不写内部结构、模块间连接无歧义、不重复端口表、参数档位、placeholder 标注 |
+| `02-architecture/README.md` | 更新正文要求表（含「上游引用（不重述）」行）、图件布局、front-matter 示例；写明 ≤500 行分解目标与「只写新增结论」通则 |
+| `standards/review-checklist.md` §C | 新增：没有废话与重复（上游用引用）、≤500 行分解、② 不写内部结构、模块间连接无歧义、不重复端口表、参数档位、placeholder 标注 |
 | `.dsh/skills/spec-to-rtl-arch/SKILL.md` | 按 grill-me 结论改为「整体架构/功能分解为模块（≤500 行）/模块间连接」；「完善」判定同步；禁止「为拆而拆」「定义内部结构」「抄端口表」 |
 | `INDEX.md` | 由 `sv.py trace` 重算（REQ-001 `approved`、ARCH-001 `draft`） |
 
@@ -168,4 +169,5 @@ python3 tools/sv.py gate all
 | 2026-09-21 | 按评审意见把**验收标准从 ① 扇出到 ⑤**：REQ 只保留 IPO，删除「验收标准」节；⑤ 的 `VP-*` 负责从 `F*`/接口不变式/时序场景扇出验收标准与 `TC-*`；合同文件同步 | `fe6542d` |
 | 2026-09-21 | 按评审意见把 ②③ 技能改为**强制由 `grill-me` 讨论产出完善文档**（附「完善」判定），并修掉 ② 技能里会让 `gate 02` hard fail 的建骨架指令 | `8780bd2` |
 | 2026-09-23 | **放行 `REQ-001`**（`approved`，样例评审）；`gate 01`/`gate 02`/`trace` 通过；② 解锁 | `3d12c72` |
-| 2026-09-23 | **② 的 `grill-me` 讨论 + `ARCH-001` 重写**：确定单模块（不拆子模块）、② 目标是把功能分解为 ≤500 行 RTL 的 module、模块内部结构留给 ③、不重复 REQ 端口表、框图只到模块边界并移入同名目录；回归 `NUM_REQ=2/4/8`、综合只按 4、验证只做顶层黑盒；合同文件（ARCH 模板/②README/评审清单 §C/IFACE 模板/②技能）同步 | 本轮提交 |
+| 2026-09-23 | **② 的 `grill-me` 讨论 + `ARCH-001` 重写**：确定单模块（不拆子模块）、② 目标是把功能分解为 ≤500 行 RTL 的 module、模块内部结构留给 ③、不重复 REQ 端口表、框图只到模块边界并移入同名目录；回归 `NUM_REQ=2/4/8`、综合只按 4、验证只做顶层黑盒；合同文件（ARCH 模板/②README/评审清单 §C/IFACE 模板/②技能）同步 | `b41112b` |
+| 2026-09-23 | 按评审意见**去掉 ARCH 的废话与重复**：上游内容改为引用标记（功能覆盖/端口/协议/时钟复位/时序约束），只保留本阶段新结论（功能分解/模块功能/模块间连接/预算口径）；ARCH 正文 115→69 行；新增「文档写作通则」到 `spec-to-rtl` 与 ② 技能 | 本轮提交 |
