@@ -6,7 +6,7 @@
 | 仓库 | `/home/alpaca/sv` ↔ <https://github.com/qiankun214/sv_with_dsh>（public，默认分支 `main`） |
 | 上一版交接文档 | 提交 `d3837c6`（2026-09-19）的内容；本文件取代它，旧版仍在 git 历史里 |
 | 本次提交 | 见 `git log docs/handover/`（本轮提交信息：`REQ-001 样例 + 写作约定固化 + 交接文档`） |
-| 进度 | **第二步进行中**：`REQ-001` 已完稿并返工 5 轮，当前 **`status: in_review`（人类尚未放行）**；`ARCH-001` 已成稿但被 REQ 未放行阻塞；③~⑥ 未开始 |
+| 进度 | **① 已放行**（`REQ-001` → `approved`，样例评审，2026-09-23）；`ARCH-001` 草稿待按 ② 新规（grill-me）复核后放行；③~⑥ 未开始 |
 
 > 本文件取代上一版交接文档。凡与旧版冲突处，以本版为准。
 
@@ -16,7 +16,7 @@
 
 流程骨架与工具链（第一步）早已就绪；本轮开始第二步，写完了 **`rr_arbiter` 样例的功能点 `REQ-001`**
 （含软硬件接口、硬件接口三段式、5 张 WaveDrom 时序图；**只含 IPO，验收标准已扇出到 ⑤**），并把评审过程中形成的**写作约定固化进了模板与技能**。
-**REQ-001 尚未放行**，因此 ② 及其之后的产物都停在门口。
+**REQ-001 已于 2026-09-23 由人类放行**（`reviewer: qiankun214（样例评审）`），② 已解锁。
 
 ## 2. 本轮（2026-09-21）做了什么
 
@@ -24,7 +24,7 @@
 
 | 产物 | 状态 | 说明 |
 |---|---|---|
-| `01-requirements/REQ-001-rr-arbitration.md` | `in_review` | 轮询仲裁功能点：**只有 IPO**——输入/输出接口、F1~F8 处理行为、约束与 non-goals（验收标准已扇出到 ⑤） |
+| `01-requirements/REQ-001-rr-arbitration.md` | **`approved`** | 轮询仲裁功能点：**只有 IPO**——输入/输出接口、F1~F8 处理行为、约束与 non-goals（验收标准扇出到 ⑤）；2026-09-23 放行，reviewer `qiankun214（样例评审）` |
 | `01-requirements/REQ-001-rr-arbitration/` | — | 与 md **同名目录**：5 组 WaveDrom 图源 `.json` + 渲染 `.svg` + `README.md` |
 | `02-architecture/ARCH-001-arb-arch.md` | `draft` | 仲裁器系统方案：单模块 `rr_arbiter`、组合授权 + 指针寄存器、面积预算 ≤150 cells |
 | `docs/diagrams/arch-001-rr-arbiter.md` | — | ARCH-001 的框图（Mermaid + ASCII），**布局尚未按「图伴 md」规则统一**（见 §4） |
@@ -79,16 +79,16 @@
 
 ```bash
 python3 tools/sv.py gate 01          # 通过（0 hard）
-python3 tools/sv.py gate 02          # hard fail：ARCH-001 的上游 REQ-001 尚未 approved（in_review）——预期行为
-python3 tools/sv.py trace            # 写 INDEX.md，同时报同一个 hard fail（exit 1）
+python3 tools/sv.py gate 02          # 通过（0 hard）——REQ-001 已放行
+python3 tools/sv.py trace            # 通过；仅 1 条预期 warn：REQ-001 还没有 TC（⑤ 未开始）
 ```
 
-`INDEX.md` 现状：`01` 阶段 1 份 `in_review`；`02` 阶段 1 份 `draft`；覆盖矩阵里 `REQ-001 → ARCH-001`，无 TC、无模块。
-**这不是缺陷**：功能点没有人类放行之前，下游引用它就是断链，门禁必须拦。
+`INDEX.md` 现状：`01` 阶段 1 份 `approved`；`02` 阶段 1 份 `draft`；覆盖矩阵 `REQ-001 → ARCH-001`，无 TC、无模块。
+`ARCH-001` 仍是 `draft`：它要按 ② 技能新规先 `grill-me` 讨论并把文档改到「完善」，再由人类放行。
 
 ## 4. 未完成 / 下一步（按顺序）
 
-1. **人类放行 `REQ-001`**：在 front-matter 写 `status: approved` + 真实 `reviewer` + `date`（样例数据要如实标注为样例评审），然后重跑 `gate 01` / `gate 02` 与 `trace`。
+1. ✅ **已完成（2026-09-23）**：人类放行 `REQ-001`（`status: approved` + `reviewer: qiankun214（样例评审）` + `date`），`gate 01`/`gate 02`/`trace` 均已通过。
 2. **复核并放行 `ARCH-001`**：按 ② 技能新规，先 `grill-me` 讨论再改文档；重点核对模块划分（单模块 `rr_arbiter`）、无软件的接口结论、面积/时序预算；
    并把 **ARCH 框图布局**改到与本文件同名的目录 `02-architecture/ARCH-001-arb-arch/`（现仍在 `docs/diagrams/arch-001-rr-arbiter.md`，不符合新规则）。
 3. **③ 详细设计**：`new module rr_arbiter --short rra` → `new des` → 写 `DES-rra-001`（端口表、指针/掩码/两段优先级编码、边界条件）→ 人类放行 → `gate 03 --module rr_arbiter`。
@@ -159,4 +159,5 @@ python3 tools/sv.py gate all
 | 2026-09-21 | 修 `setup.sh`（sudo/apt 主路径等） | `d25e831` |
 | 2026-09-21 | 第二步启动：`REQ-001` 样例（多轮评审返工）+ `ARCH-001` 草稿；写作约定固化进模板/清单/技能；新增 WaveDrom 图件工具链与同名目录布局；本交接文档 | `f2395aa` |
 | 2026-09-21 | 按评审意见把**验收标准从 ① 扇出到 ⑤**：REQ 只保留 IPO，删除「验收标准」节；⑤ 的 `VP-*` 负责从 `F*`/接口不变式/时序场景扇出验收标准与 `TC-*`；合同文件同步 | `fe6542d` |
-| 2026-09-21 | 按评审意见把 ②③ 技能改为**强制由 `grill-me` 讨论产出完善文档**（附「完善」判定），并修掉 ② 技能里会让 `gate 02` hard fail 的建骨架指令 | 本轮提交 |
+| 2026-09-21 | 按评审意见把 ②③ 技能改为**强制由 `grill-me` 讨论产出完善文档**（附「完善」判定），并修掉 ② 技能里会让 `gate 02` hard fail 的建骨架指令 | `8780bd2` |
+| 2026-09-23 | **放行 `REQ-001`**（`approved`，样例评审）；`gate 01`/`gate 02`/`trace` 通过；② 解锁 | 本轮提交 |
