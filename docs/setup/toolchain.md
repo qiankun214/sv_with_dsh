@@ -4,6 +4,9 @@
 
 > **OpenSTA**（`gate 06` 的静态时序分析）由 `./setup.sh` 一并构建到 `.tools/sta/`，
 > 手工步骤与排障见 [opensta.md](opensta.md)；不需要时用 `--no-sta` 跳过。
+>
+> **slang**（`gate 04`/`06` 的 SV 语义检查）装在 `.tools/slang/`，
+> 手工步骤与排障见 [slang.md](slang.md)；不需要时用 `--no-slang` 跳过。
 
 ## 0. 本机现状（已核实，2026-xx 快照）
 

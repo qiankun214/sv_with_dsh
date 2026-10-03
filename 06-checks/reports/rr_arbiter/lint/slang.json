@@ -1,0 +1,7 @@
+{
+  "module": "rr_arbiter",
+  "tool": "slang --lint-only",
+  "errors": 0,
+  "warnings": 0,
+  "returncode": 0
+}

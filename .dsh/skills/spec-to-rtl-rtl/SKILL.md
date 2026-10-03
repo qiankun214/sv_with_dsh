@@ -48,7 +48,8 @@ python3 tools/sv.py gate 04 --module rr_arbiter
 ```
 
 - hard fail：模块与详设对不上、`.f` 文件缺失、顶层名不符、`module.yaml` 不一致 → 必须修。
-- lint / 格式类为 soft warn：修到 0，或在 `06-checks/waivers/rr_arbiter.yaml` 登记**未过期**的 waiver（写明理由、owner、到期日）。
+- lint / 格式 / SV 语义类为 soft warn（分别由 verilator / verible / slang 产出）：修到 0，
+  或在 `06-checks/waivers/rr_arbiter.yaml` 登记**未过期**的 waiver（写明理由、owner、到期日）。
 - 工具未安装会 skip：把 skip 项记录下来交给用户，不要声称已 lint 过。
 
 ## 完成定义

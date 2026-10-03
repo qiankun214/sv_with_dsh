@@ -808,6 +808,52 @@ def tool_lint(rep: Report, module: str, dry: bool, waivers: list[dict]) -> None:
         else:
             rep.good(f"{module}: 格式检查通过")
 
+    # SV 语义（slang）：可执行文件在不同来源里叫 slang 或 slang-driver，两个名字都认
+    slang_bin = which("slang") or which("slang-driver")
+    if slang_bin is None:
+        rep.s(f"{module}: slang 未安装 → 跳过 SV 语义检查（见 docs/setup/slang.md）")
+    else:
+        out_dir = REPORTS / module / "lint"
+        log = out_dir / "slang.log"
+        files, _ = read_filelist(f)
+        cmd = [slang_bin, "--lint-only", "--error-limit", "0", *files]
+        rc, out = run(cmd, cwd=f.parent, dry=dry, log=log)
+        m = re.search(
+            r"(?:Build succeeded|Build failed|Build completed):\s*(\d+)\s+errors?,\s*(\d+)\s+warnings?",
+            out,
+        )
+        errors = int(m.group(1)) if m else None
+        warnings = int(m.group(2)) if m else None
+        if dry:
+            rep.s("--dry-run：未实际执行 slang 语义检查")
+        else:
+            write_summary_json(
+                out_dir / "slang.json",
+                {
+                    "module": module,
+                    "tool": "slang --lint-only",
+                    "errors": errors,
+                    "warnings": warnings,
+                    "returncode": rc,
+                },
+            )
+            limit = int(thresholds()["lint"].get("max_slang_warnings", 0) or 0)
+            if rc != 0:
+                rep.w(
+                    f"{module}: slang 语义检查未通过（errors {errors} / warnings {warnings}，"
+                    f"soft warn，详见 {rel(log)}）"
+                )
+            elif warnings is not None and warnings > limit:
+                rep.w(
+                    f"{module}: slang 警告 {warnings} 条，超过阈值 {limit}（soft warn，{rel(log)}）"
+                )
+            else:
+                rep.good(
+                    f"{module}: slang 语义检查通过"
+                    f"（errors {errors if errors is not None else 0} / "
+                    f"warnings {warnings if warnings is not None else 0}）"
+                )
+
 
 # --- ⑤ 自测 ---------------------------------------------------------------
 def tool_sim(rep: Report, module: str, by_id: dict[str, Artifact], dry: bool) -> None:
@@ -1135,7 +1181,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         ("verilator", ("--version",), "OSS CAD Suite 或 apt"),
         ("yosys", ("-V",), "OSS CAD Suite"),
         ("sta", ("-version",), "OpenSTA（见 docs/setup/opensta.md）"),
-        ("slang", ("--version",), "OSS CAD Suite"),
+        ("slang", ("--version",), "见 docs/setup/slang.md（或 OSS CAD Suite）"),
         ("verible-verilog-lint", ("--version",), "verible release"),
         ("verible-verilog-format", ("--version",), "verible release"),
         ("make", ("--version",), "build-essential（cocotb 需要）"),

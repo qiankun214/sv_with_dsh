@@ -28,7 +28,7 @@ python3 tools/sv.py new chk --module rr_arbiter --title "lint 与综合检查"
 |---|---|---|
 | 语法/可综合性 | `verilator --lint-only` | `reports/<m>/lint/` |
 | 风格 | `verible-verilog-lint` / `-format` | `reports/<m>/lint/` |
-| SV 语义 | `slang` | 同上 |
+| SV 语义 | `slang --lint-only` | 同上 |
 | 综合到网表 + 面积 | `yosys` + sky130 liberty | `reports/<m>/synth/` |
 | 静态时序（WNS/TNS） | `sta`（OpenSTA）+ sky130 liberty | `reports/<m>/sta/` |
 | 行/翻转覆盖率 | cocotb + verilator `--coverage` | `reports/<m>/cov/` |

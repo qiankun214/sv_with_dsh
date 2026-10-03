@@ -12,6 +12,7 @@
 #                   默认走清华镜像；GitHub 直连实测仅 ~3 KB/s，故不再使用
 #   .tools/sta/     OpenSTA（静态时序分析，gate 06 用）；构建依赖 swig/eigen/cudd
 #                   来自 conda-forge 与 vsc 渠道，源码从 GitHub 取（失败回退 codeload）
+#   .tools/slang/   slang（SV 语义检查，gate 04 用）；来自 LiteX-Hub 渠道（同 PDK）
 #   .tools/pdk/     可选（--with-pdk）：litex-hub 的 open_pdks.sky130a，约 1.2 GB
 #   系统基础包      apt + sudo：bzip2 build-essential python3-venv python3-pip
 #
@@ -37,12 +38,13 @@
 #   apt 退出码。要静默可自行加 -o Dpkg::Options::=--no-triggers。
 #
 # 用法：
-#   ./setup.sh                     # .venv + eda + OpenSTA（verilator/verible/yosys/sta）
+#   ./setup.sh                     # .venv + eda + OpenSTA + slang
 #   ./setup.sh --with-pdk          # 追加 sky130 PDK（打通 gate 06 综合与时序）
 #   ./setup.sh --no-sta            # 跳过 OpenSTA 构建（gate 06 时序会被 skip）
+#   ./setup.sh --no-slang          # 跳过 slang（gate 04 的 SV 语义检查会被 skip）
 #   ./setup.sh --no-sudo           # 禁用 apt 阶段，全走无 sudo 降级路径
 #   ./setup.sh --mirror official   # conda-forge 源：tuna(默认)|bfsu|official|<url>
-#   ./setup.sh --force             # 重建 .venv / .tools/eda / .tools/sta
+#   ./setup.sh --force             # 重建 .venv / .tools/eda / .tools/sta / .tools/slang
 #   ./setup.sh --help
 #
 # 装完：
@@ -58,12 +60,14 @@ EDA="$TOOLS/eda"
 STA="$TOOLS/sta"          # OpenSTA 安装前缀（bin/sta，由 gate 06 调用）
 STA_BUILD="$TOOLS/stabuild"   # STA 构建依赖（swig/eigen/cudd）的 conda 前缀
 STA_SRC="$TOOLS/src/OpenSTA"  # OpenSTA 源码
+SLANG="$TOOLS/slang"      # slang 安装前缀（bin/slang，由 gate 04 调用）
 PDK_ENV="$TOOLS/pdk"
 REQ="$ROOT/requirements.txt"
 
 MIRROR="${MIRROR:-tuna}"
 WITH_PDK=0
 WITH_STA=1
+WITH_SLANG=1
 FORCE=0
 PDK_ROOT=""          # 装完 PDK 后由探测填入
 # cudd 不在 conda-forge（在 vsc 渠道，OpenLane 系常用）
@@ -409,6 +413,30 @@ setup_sta() {
   ok "sta：$("$STA/bin/sta" -version 2>&1 | tr -d '\r' | grep -E '[0-9]' | tail -1)（$STA/bin/sta）"
 }
 
+# --- ②c .tools/slang：slang（SV 语义检查，gate 04 用） -------------------------
+# 包在 LiteX-Hub 渠道（与 sky130 PDK 同源）；包内可执行文件叫 slang-driver，
+# 这里补一个 slang 软链（sv.py 两个名字都认，doctor 默认查 slang）。
+setup_slang() {
+  if [[ $WITH_SLANG -eq 0 ]]; then
+    log "按 --no-slang 跳过 slang（gate 04 的 SV 语义检查会 skip）"
+    return
+  fi
+  if [[ -x "$SLANG/bin/slang" && $FORCE -eq 0 ]]; then
+    log "slang 已存在（$("$SLANG/bin/slang" --version 2>&1 | head -1)），跳过"
+    ok "slang：$SLANG/bin/slang"
+    return
+  fi
+  local mm; mm="$(ensure_micromamba)"
+  rm -rf "$SLANG"
+  log "从 LiteX-Hub 安装 slang（$PDK_CHANNEL）"
+  HOME="$MAMBA_HOME" "$mm" create -y --no-rc -p "$SLANG" -c "$PDK_CHANNEL" slang \
+    || die "slang 安装失败（渠道 $PDK_CHANNEL）"
+  # 包内可执行文件是 slang-driver；补 slang 软链，方便 PATH 与 doctor
+  [[ -x "$SLANG/bin/slang-driver" ]] && ln -sf slang-driver "$SLANG/bin/slang"
+  [[ -x "$SLANG/bin/slang" ]] || die "装好了但找不到 $SLANG/bin/slang（或 slang-driver）"
+  ok "slang：$("$SLANG/bin/slang" --version 2>&1 | head -1)（$SLANG/bin/slang）"
+}
+
 # --- ③ 可选：.tools/pdk：sky130 PDK（litex-hub/open_pdks.sky130a） -------------
 setup_pdk() {
   local mm; mm="$(ensure_micromamba)"
@@ -451,7 +479,7 @@ _root=$(CDPATH= cd -- "$(dirname -- "$_self")/.." && pwd)
 
 # .venv/bin 必须在最前：python3 == venv 解释器（含 PyYAML + cocotb），
 # 同时避免 verilator_includer 用错 Python 版本
-PATH="$_root/.venv/bin:$_root/.tools/eda/bin:$_root/.tools/sta/bin:$PATH"
+PATH="$_root/.venv/bin:$_root/.tools/eda/bin:$_root/.tools/sta/bin:$_root/.tools/slang/bin:$PATH"
 export PATH
 EOF
     if [[ -n "$PDK_ROOT" ]]; then
@@ -467,6 +495,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --with-pdk)  WITH_PDK=1; shift ;;
     --no-sta)    WITH_STA=0; shift ;;
+    --no-slang)  WITH_SLANG=0; shift ;;
     --no-sudo)   USE_SUDO=0; shift ;;
     --mirror)    MIRROR="${2:-}"; [[ -n "$MIRROR" ]] || die "--mirror 需要一个值"; shift 2 ;;
     --mirror=*)  MIRROR="${1#*=}"; shift ;;
@@ -491,6 +520,7 @@ fi
 setup_venv
 setup_eda
 setup_sta
+setup_slang
 if (( WITH_PDK )); then
   setup_pdk
 fi
@@ -501,10 +531,10 @@ log "环境自检（tools/sv.py doctor）"
 # 注意：赋值前缀不能用展开出来的 `NAME=value`（bash 在展开前就判定赋值，
 # 会把展开结果当命令执行），所以这里显式分支。
 if [[ -n "$PDK_ROOT" ]]; then
-  PATH="$VENV/bin:$EDA/bin:$STA/bin:$PATH" PDK_ROOT="$PDK_ROOT" \
+  PATH="$VENV/bin:$EDA/bin:$STA/bin:$SLANG/bin:$PATH" PDK_ROOT="$PDK_ROOT" \
     "$VENV/bin/python" "$ROOT/tools/sv.py" doctor || true
 else
-  PATH="$VENV/bin:$EDA/bin:$STA/bin:$PATH" \
+  PATH="$VENV/bin:$EDA/bin:$STA/bin:$SLANG/bin:$PATH" \
     "$VENV/bin/python" "$ROOT/tools/sv.py" doctor || true
 fi
 
@@ -516,5 +546,5 @@ cat <<EOF
   python3 tools/sv.py gate all
 
 未装 PDK 时 gate 06 会 skip 综合与时序；用 ./setup.sh --with-pdk 追加。
-未装 OpenSTA（--no-sta）时 gate 06 的时序分析会 skip。
+未装 OpenSTA（--no-sta）时 gate 06 的时序分析会 skip；未装 slang（--no-slang）时 gate 04 的 SV 语义检查会 skip。
 EOF

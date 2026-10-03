@@ -15,6 +15,8 @@ lint:
   max_warnings: 0
   # verible 风格告警上限
   max_style_warnings: 0
+  # slang SV 语义检查（--lint-only）的 warning 上限
+  max_slang_warnings: 0
 
 synth:
   # 单元数上限；0 表示不检查（首版通常先观察再定基线）

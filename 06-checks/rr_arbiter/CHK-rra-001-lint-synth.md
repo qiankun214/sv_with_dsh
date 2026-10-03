@@ -10,6 +10,7 @@ artifacts:
   - 06-checks/reports/rr_arbiter/lint/summary.json
   - 06-checks/reports/rr_arbiter/lint/summary.md
   - 06-checks/reports/rr_arbiter/lint/verible-lint.json
+  - 06-checks/reports/rr_arbiter/lint/slang.json
   - 06-checks/reports/rr_arbiter/synth/summary.json
   - 06-checks/reports/rr_arbiter/synth/summary.md
   - 06-checks/reports/rr_arbiter/sta/summary.json
@@ -31,7 +32,7 @@ artifacts:
 |---|---|---|---|---|
 | 语法/可综合性 lint | verilator --lint-only | 通过 | errors 0 / warnings 0 / waived 0 | `06-checks/reports/rr_arbiter/lint/summary.md` |
 | 风格 lint / 格式 | verible-verilog-lint / -format | 通过 | findings 0；`verible-verilog-format` 输出与源文件一致 | `06-checks/reports/rr_arbiter/lint/verible-lint.json` |
-| SV 语义 | slang | **未执行（工具缺失）** | — | 见「未执行项」 |
+| SV 语义 | slang --lint-only（3.0.0） | 通过 | errors 0 / warnings 0 | `06-checks/reports/rr_arbiter/lint/slang.json` |
 | 综合（sky130） | yosys + sky130_fd_sc_hd | 通过 | cells 26 / area 165.158 | `06-checks/reports/rr_arbiter/synth/summary.md` |
 | 静态时序（sky130） | sta（OpenSTA 3.1.0）+ sky130_fd_sc_hd | 通过（MET） | WNS 8.71 ns / TNS 0.00 ns / 推算 Fmax 775.2 MHz @ 10 ns | `06-checks/reports/rr_arbiter/sta/summary.md` |
 | 行/翻转覆盖 | cocotb + verilator --coverage | 通过 | line 100.0% / toggle 96.9% | `06-checks/reports/rr_arbiter/cov/summary.json` |
@@ -73,20 +74,22 @@ artifacts:
 
 | 检查 | 原因 | 补跑条件 |
 |---|---|---|
-| SV 语义（`slang`） | 环境未安装 `slang`（`doctor` 列为 MISSING）；不影响已完成的 verilator/verible 结论 | 装 `slang` 后对其做 lint；本仓库当前未把它接入 `sv.py` |
 | 非法参数 elaboration 拒绝 | `NUM_REQ < 2` / `> 8` 属 elaboration 行为，**不可用激励覆盖**（`DES-rra-001` 与 `VP-rra-001` 均已记录，故不作为 `TC-*`） | ④ 静态检查已实测：`verilator -GNUM_REQ=1` 退出码 1、`yosys` 报 `ERROR`；无需重复 |
 
-> 说明：本版起 **时序已执行**（原先的「无 STA 工具」已解决）：OpenSTA 已装到 `.tools/sta/`，
-> 并接入 `tools/sv.py gate 06`（`06-checks/cfg/sta_sky130.tcl` + `thresholds.yaml` 的 `sta.*`）。
+> 说明：本版起 **时序与 SV 语义检查都已执行**：
+> OpenSTA 装在 `.tools/sta/` 并接入 `gate 06`（`sta_sky130.tcl` + `thresholds.yaml` 的 `sta.*`）；
+> slang 装在 `.tools/slang/` 并接入 `gate 04` 的 lint 阶段（`thresholds.yaml` 的 `lint.max_slang_warnings`），
+> 证据在 `reports/rr_arbiter/lint/slang.json`。
 > 早期尝试的 yosys `ltp` 逻辑级数代理在门级网上只报 `length=0`，已废弃，不再作为时序依据。
 
 ## 结论与后续
 
-1. **lint / 格式 / 综合 / 时序 / 覆盖率五项均通过**：无告警（verilator/verible 各 0 条）、无 waiver；
+1. **lint / 格式 / SV 语义 / 综合 / 时序 / 覆盖率六项均通过**：无告警（verilator / verible / slang 各 0 条）、无 waiver；
 2. 面积 **26 cells** 满足 `ARCH-001` 的 ≤150 预算，且落在预期区间 25~60 内；
 3. **时序收敛**：`NUM_REQ=4` 综合网表在 10 ns（100 MHz）下 **WNS 8.71 ns、TNS 0.00 ns**，
    推算 Fmax ≈ **775.2 MHz**（单时钟理想网络、I/O 外部延时 0）；最差路径为 `ptr_q` 寄存器 → 5 级组合 → 自身 D 端；
-4. 唯一遗留：`slang` SV 语义检查（工具未安装），已列补跑条件，不影响上述结论。
+4. **没有待补检查项**：原「未执行项」里的 slang 与 STA 均已执行；仅剩一条非检查类的说明
+   （非法参数 `NUM_REQ<2/>8` 属 elaboration 行为，不可激励覆盖，已由 ④ 静态检查实测拦下）。
 
 ## 变更历史
 
@@ -96,3 +99,5 @@ artifacts:
 | 2026-10-03 | **人类放行**：`status: approved`，`reviewer: qiankun214（样例评审）`（样例数据，如实标注为样例评审，非真实项目评审记录） | `rr_arbiter` 样例的 ①→⑥ 全链路完成；时序核验当时仍为遗留项 |
 | 2026-10-03 | **补齐时序核验**：安装 OpenSTA 3.1.0 到 `.tools/sta/`，并接入 `tools/sv.py gate 06`（新增 `06-checks/cfg/sta_sky130.tcl`、`thresholds.yaml` 的 `sta.*`、`doctor` 的 sta 行、`docs/setup/opensta.md`、`setup.sh` 的 `setup_sta()`；⑥ 技能/CHK 模板/AGENTS §5§6/评审清单 §G 同步）。实测 `NUM_REQ=4` @10 ns：**WNS 8.71 ns、TNS 0.00 ns、推算 Fmax 775.2 MHz**；「未执行项」移除 STA 与 ltp 代理两条。原放行随内容变更作废，`status` 回到 `in_review` | 时序结论可核对；流程 ①→⑥ 完结 |
 | 2026-10-03 | **人类重放行**（`status: approved`，`reviewer: qiankun214（样例评审）`）：确认 `NUM_REQ=4` 的时序结论（WNS 8.71 ns / TNS 0.00 ns / 推算 Fmax 775.2 MHz）与建模口径 | 本版为 `rr_arbiter` 样例 ①→⑥ 的最终检查结论 |
+| 2026-10-03 | **补齐 SV 语义检查**：安装 slang 3.0.0（LiteX-Hub 渠道）到 `.tools/slang/`，并接入 `tools/sv.py` 的 lint 阶段（`gate 04`/`gate all` 自动跑 `slang --lint-only`，新增 `thresholds.yaml` 的 `lint.max_slang_warnings`、`doctor` 提示、`docs/setup/slang.md`、`setup.sh` 的 `setup_slang()`；④⑥ 技能/toolchain 文档同步）。实测 errors 0 / warnings 0；「未执行项」移除 slang 一条。原放行随内容变更作废，`status` 回到 `in_review` | 六项检查全部有实测结论；待重放行 |
+| 2026-10-03 | **人类重放行**（`status: approved`，`reviewer: qiankun214（样例评审）`）：确认加入 slang 后的完整六项结论 | `rr_arbiter` 样例 ①→⑥ 收官 |
