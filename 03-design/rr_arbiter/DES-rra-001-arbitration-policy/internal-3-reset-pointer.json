@@ -1,0 +1,20 @@
+{
+  "head": {"text": "Internal 3: rst_n resets pointer only (req_i=1111)", "tick": 0},
+  "foot": {"text": "1 clk cycle = 2 ticks; output is not forced 0 during reset"},
+  "config": {"hscale": 1.8},
+  "signal": [
+    {"name": "clk", "wave": "1010101010"},
+    {"name": "rst_n", "wave": "10...1...."},
+    {"name": "req_i", "wave": "2.2.2.2.2.", "data": ["1111", "1111", "1111", "1111", "1111"]},
+    {"name": "ptr_q", "wave": "2.2.2.2.2.", "data": ["01", "00", "00", "01", "10"]},
+    {"name": "mask_lo", "wave": "2.2.2.2.2.", "data": ["0001", "0000", "0000", "0001", "0011"]},
+    {"name": "req_hi", "wave": "2.2.2.2.2.", "data": ["1110", "1111", "1111", "1110", "1100"]},
+    {"name": "idx_hi", "wave": "2.2.2.2.2.", "data": ["01", "00", "00", "01", "10"]},
+    {"name": "idx_lo", "wave": "2.2.2.2.2.", "data": ["00", "00", "00", "00", "00"]},
+    {"name": "sel_idx", "wave": "2.2.2.2.2.", "data": ["01", "00", "00", "01", "10"]},
+    {"name": "wrap_hit", "wave": "0"},
+    {"name": "ptr_d", "wave": "2.2.2.2.2.", "data": ["10", "01", "01", "10", "11"]},
+    {"name": "grant_o", "wave": "2.2.2.2.2.", "data": ["0010", "0001", "0001", "0010", "0100"]},
+    {"name": "grant_valid_o", "wave": "1"}
+  ]
+}

@@ -16,7 +16,7 @@
 | `scenario-1-single-request.json` | `scenario-1-single-request.svg` | 单请求者持续请求 `req_i=4'b0100` |
 | `scenario-2-round-robin.json` | `scenario-2-round-robin.svg` | 四请求者持续请求 `req_i=4'b1111`，授权在 4 个 bit 间轮转 |
 | `scenario-3-idle-pointer-hold.json` | `scenario-3-idle-pointer-hold.svg` | 请求全 0 期间不授权，随后恢复 |
-| `scenario-4-reset.json` | `scenario-4-reset.svg` | 复位断言（`req_i` 仍有效）与释放 |
+| `scenario-4-reset.json` | `scenario-4-reset.svg` | 复位只复位指针：断言期间输出不强制清零，释放后从索引 0 起 |
 | `scenario-5-request-change.json` | `scenario-5-request-change.svg` | 请求逐周期变化 |
 
 > 图里**只画端口信号**（`clk` / `rst_n` / `req_i` / `grant_o` / `grant_valid_o`），不放任何内部状态——
@@ -50,4 +50,4 @@ python3 -m venv .tools/wdvenv && .tools/wdvenv/bin/pip install wavedrom
 
 - 每个 `clk` 周期 = 2 个 tick；图中顶部数字是 tick 序号，相邻两个 tick 构成一拍。
 - 图内**只画端口信号**，不含内部状态；内部实现（指针、算法、公平性）不在接口协议范围内。
-- 波形是需求级接口契约（如「输出以 `clk` 为基准有效」「复位期强制 0」「无请求不授权」），不约束实现细节。
+- 波形是需求级接口契约（如「输出以 `clk` 为基准有效」「复位只复位指针、不强制清零输出」「无请求不授权」），不约束实现细节。

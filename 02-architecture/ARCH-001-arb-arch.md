@@ -1,10 +1,10 @@
 ---
 id: ARCH-001
 title: 仲裁器系统方案
-status: draft
+status: approved
 owner: agent
-reviewer:
-date: 2026-09-23
+reviewer: qiankun214（样例评审）
+date: 2026-10-03
 upstream: [REQ-001]
 artifacts:
   - 02-architecture/ARCH-001-arb-arch/README.md
@@ -67,3 +67,4 @@ artifacts:
 | 2026-09-19 | 初稿（样例数据） | — |
 | 2026-09-21 | 对齐 `REQ-001` 返工：补 `F8` 的满足方式；改为单周期同步口径（删除 `≤5 ns` 组合路径预算） | ③ 的实现约束 |
 | 2026-09-23 | 按 `grill-me` 结论重写：只保留本阶段新结论——**功能分解为模块（≤500 行判据）+ 各模块功能 + 模块间连接**；确定单模块、不拆子模块；上游内容改为引用 `REQ-001`；删除模块内部结构描述（留给 ③）；补资源/参数档位口径 | ③④⑤⑥ 的边界与口径；`artifacts` 更新 |
+| 2026-10-03 | **人类放行**：`status: approved`，`reviewer: qiankun214（样例评审）`（样例数据，如实标注为样例评审，非真实项目评审记录）；本版作为 ③ 详细设计的上游契约 | 解锁 ③（`DES-rra-001` 可引用 `ARCH-001`） |

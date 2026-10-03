@@ -1,0 +1,7 @@
+module: rr_arbiter
+id_short: rra
+owner: agent
+rtl_toplevel: rr_arbiter
+implements:
+- DES-rra-001
+files: []
