@@ -98,6 +98,9 @@ MAMBA_HOME="$TOOLS/home"
 
 # litex-hub 渠道国内镜像普遍不镜像（实测 TUNA/BFSU 404），官方 CDN 实测 12.5 MB/s，够快
 PDK_CHANNEL="${PDK_CHANNEL:-https://conda.anaconda.org/litex-hub}"
+# slang（SV 语义检查）也在 LiteX-Hub 渠道（与 PDK 同源）。单独一个变量便于覆写：
+# conda-forge 的 `slang` 是 S-Lang，不是 SystemVerilog 前端，不能走默认渠道。
+SLANG_CHANNEL="${SLANG_CHANNEL:-https://conda.anaconda.org/litex-hub}"
 
 # --- 小工具 -----------------------------------------------------------------
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
@@ -414,27 +417,46 @@ setup_sta() {
 }
 
 # --- ②c .tools/slang：slang（SV 语义检查，gate 04 用） -------------------------
-# 包在 LiteX-Hub 渠道（与 sky130 PDK 同源）；包内可执行文件叫 slang-driver，
-# 这里补一个 slang 软链（sv.py 两个名字都认，doctor 默认查 slang）。
+# 渠道：LiteX-Hub（与 sky130 PDK 同源）。注意 conda-forge 的 `slang` 是 **S-Lang**
+# （完全无关的库），所以必须显式指定渠道，不能用默认的 conda-forge。
+# 包内可执行文件叫 slang-driver，这里补一个 slang 软链（sv.py 两个名字都认，
+# 但 PATH 与 doctor 默认查 slang）。
 setup_slang() {
   if [[ $WITH_SLANG -eq 0 ]]; then
     log "按 --no-slang 跳过 slang（gate 04 的 SV 语义检查会 skip）"
     return
   fi
-  if [[ -x "$SLANG/bin/slang" && $FORCE -eq 0 ]]; then
-    log "slang 已存在（$("$SLANG/bin/slang" --version 2>&1 | head -1)），跳过"
+
+  # 已装则只补软链（兼容「只有 slang-driver、没有 slang」的旧前缀）
+  if [[ -x "$SLANG/bin/slang-driver" && $FORCE -eq 0 ]]; then
+    if [[ ! -e "$SLANG/bin/slang" ]]; then
+      ln -sf slang-driver "$SLANG/bin/slang"
+      log "已补软链 $SLANG/bin/slang -> slang-driver"
+    fi
+    local v
+    v="$("$SLANG/bin/slang" --version 2>&1 | head -1)"
+    log "slang 已存在（$v），跳过"
     ok "slang：$SLANG/bin/slang"
     return
   fi
+
   local mm; mm="$(ensure_micromamba)"
   rm -rf "$SLANG"
-  log "从 LiteX-Hub 安装 slang（$PDK_CHANNEL）"
-  HOME="$MAMBA_HOME" "$mm" create -y --no-rc -p "$SLANG" -c "$PDK_CHANNEL" slang \
-    || die "slang 安装失败（渠道 $PDK_CHANNEL）"
+  log "从 $SLANG_CHANNEL 安装 slang"
+  HOME="$MAMBA_HOME" "$mm" create -y --no-rc -p "$SLANG" -c "$SLANG_CHANNEL" slang \
+    || die "slang 安装失败（渠道 $SLANG_CHANNEL；注意 conda-forge 的 slang 是 S-Lang，不是 SV slang）"
+
   # 包内可执行文件是 slang-driver；补 slang 软链，方便 PATH 与 doctor
-  [[ -x "$SLANG/bin/slang-driver" ]] && ln -sf slang-driver "$SLANG/bin/slang"
+  if [[ -x "$SLANG/bin/slang-driver" && ! -e "$SLANG/bin/slang" ]]; then
+    ln -sf slang-driver "$SLANG/bin/slang"
+    log "已补软链 $SLANG/bin/slang -> slang-driver"
+  fi
   [[ -x "$SLANG/bin/slang" ]] || die "装好了但找不到 $SLANG/bin/slang（或 slang-driver）"
-  ok "slang：$("$SLANG/bin/slang" --version 2>&1 | head -1)（$SLANG/bin/slang）"
+
+  local v
+  v="$("$SLANG/bin/slang" --version 2>&1 | head -1)"
+  [[ -n "$v" ]] || die "slang 装好了但跑不起来：$SLANG/bin/slang --version 无输出"
+  ok "slang：$v（$SLANG/bin/slang）"
 }
 
 # --- ③ 可选：.tools/pdk：sky130 PDK（litex-hub/open_pdks.sky130a） -------------
