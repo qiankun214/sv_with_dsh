@@ -1,0 +1,10 @@
+{
+  "module": "rr_arbiter",
+  "tool": "verilator --lint-only",
+  "errors": 0,
+  "warnings": 0,
+  "waived": 0,
+  "counted": 0,
+  "by_rule": {},
+  "returncode": 0
+}

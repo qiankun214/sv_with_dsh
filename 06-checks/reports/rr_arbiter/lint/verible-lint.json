@@ -1,0 +1,6 @@
+{
+  "module": "rr_arbiter",
+  "tool": "verible-verilog-lint",
+  "findings": 0,
+  "returncode": 0
+}
