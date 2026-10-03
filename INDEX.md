@@ -1,7 +1,7 @@
 # INDEX — 追溯与覆盖索引
 
 > 本文件由 `python3 tools/sv.py trace` 生成，**请入库**（评审时直接看 diff）。
-> 生成时间：2026-10-03T22:51:49
+> 生成时间：2026-10-03T22:55:59
 
 ## 阶段产物统计
 
@@ -11,19 +11,19 @@
 | 02 系统方案 | `02-architecture` | 0 | 0 | 1 | 0 | 1 |
 | 03 详细设计 | `03-design` | 0 | 0 | 1 | 0 | 1 |
 | 05 代码自测 | `05-verification` | 0 | 0 | 1 | 0 | 1 |
-| 06 检查汇总 | `06-checks` | 0 | 0 | 0 | 0 | 0 |
+| 06 检查汇总 | `06-checks` | 0 | 0 | 1 | 0 | 1 |
 
 ## 需求覆盖矩阵
 
 | 功能点 | 标题 | 状态 | 系统方案 | 详细设计 | 测试点 | 检查 |
 |---|---|---|---|---|---|---|
-| REQ-001 | 轮询仲裁 | approved | ARCH-001 | DES-rra-001 | TC-rra-001, TC-rra-002, TC-rra-003, TC-rra-004, TC-rra-005, TC-rra-006, TC-rra-007, TC-rra-008 | — |
+| REQ-001 | 轮询仲裁 | approved | ARCH-001 | DES-rra-001 | TC-rra-001, TC-rra-002, TC-rra-003, TC-rra-004, TC-rra-005, TC-rra-006, TC-rra-007, TC-rra-008 | CHK-rra-001 |
 
 ## 模块清单
 
 | 模块 | 短名 | 详设 | RTL 目录 | 自测目录 | 检查汇总 |
 |---|---|---|---|---|---|
-| rr_arbiter | rra | DES-rra-001 | 有 | 有 | — |
+| rr_arbiter | rra | DES-rra-001 | 有 | 有 | CHK-rra-001 |
 
 ## 未覆盖清单
 
