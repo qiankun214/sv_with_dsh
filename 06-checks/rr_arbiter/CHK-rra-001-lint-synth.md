@@ -12,6 +12,9 @@ artifacts:
   - 06-checks/reports/rr_arbiter/lint/verible-lint.json
   - 06-checks/reports/rr_arbiter/synth/summary.json
   - 06-checks/reports/rr_arbiter/synth/summary.md
+  - 06-checks/reports/rr_arbiter/sta/summary.json
+  - 06-checks/reports/rr_arbiter/sta/summary.md
+  - 06-checks/reports/rr_arbiter/sta/run.tcl
   - 06-checks/reports/rr_arbiter/cov/summary.json
 ---
 
@@ -30,6 +33,7 @@ artifacts:
 | 风格 lint / 格式 | verible-verilog-lint / -format | 通过 | findings 0；`verible-verilog-format` 输出与源文件一致 | `06-checks/reports/rr_arbiter/lint/verible-lint.json` |
 | SV 语义 | slang | **未执行（工具缺失）** | — | 见「未执行项」 |
 | 综合（sky130） | yosys + sky130_fd_sc_hd | 通过 | cells 26 / area 165.158 | `06-checks/reports/rr_arbiter/synth/summary.md` |
+| 静态时序（sky130） | sta（OpenSTA 3.1.0）+ sky130_fd_sc_hd | 通过（MET） | WNS 8.71 ns / TNS 0.00 ns / 推算 Fmax 775.2 MHz @ 10 ns | `06-checks/reports/rr_arbiter/sta/summary.md` |
 | 行/翻转覆盖 | cocotb + verilator --coverage | 通过 | line 100.0% / toggle 96.9% | `06-checks/reports/rr_arbiter/cov/summary.json` |
 
 补充证据：cocotb 回归 **8 个 `TC-*` × 5 个参数档（`NUM_REQ=2/3/4/5/8`）= 40/40 通过**，
@@ -50,7 +54,7 @@ artifacts:
 |---|---|---|---|
 | 面积（sky130 cells，`NUM_REQ=4`） | ≤ 150（预期 25~60） | **26 cells** | 落在预期区间内、为上限的 17%；口径一致（同为 `NUM_REQ=4`、`sky130_fd_sc_hd__tt_025C_1v80`） |
 | 面积（liberty area 单位） | —（② 按 cells 定预算） | 165.158 | 仅记录，不与 cells 预算做换算（口径不同） |
-| 频率 | 100 MHz（10 ns，`REQ-001` 约束） | **未核验** | 本机无 STA 工具（`sta`/`opensta` 均缺）；尝试用 yosys `ltp` 取逻辑级数做代理也无效，详见「未执行项」 |
+| 频率 | 100 MHz（10 ns，`REQ-001` 约束） | **WNS 8.71 ns @ 10 ns（MET）**，推算 Fmax ≈ **775.2 MHz** | 时序核验通过（OpenSTA + sky130 `tt_025C_1v80`）；建模口径：单时钟、理想时钟网络（无 CTS）、I/O 外部延时 0；Fmax 由 `1000/(周期 − WNS)` 推算，见 `06-checks/cfg/sta_sky130.tcl` |
 
 `ARCH-001` 定的「综合只按 `NUM_REQ=4`」已遵守；未附其它参数档面积。
 
@@ -62,6 +66,7 @@ artifacts:
 |---|---|---|---|
 | 告警数 | — | 0 | 首版 |
 | 面积（cells） | — | 26 | 首版 |
+| 时序（WNS @ 10 ns） | — | 8.71 ns（MET） | 首版 |
 | 覆盖率 | — | line 100.0% / toggle 96.9% | 首版 |
 
 ## 未执行项
@@ -69,21 +74,25 @@ artifacts:
 | 检查 | 原因 | 补跑条件 |
 |---|---|---|
 | SV 语义（`slang`） | 环境未安装 `slang`（`doctor` 列为 MISSING）；不影响已完成的 verilator/verible 结论 | 装 `slang` 后对其做 lint；本仓库当前未把它接入 `sv.py` |
-| 100 MHz 时序核验（STA） | 环境无 `sta` / `opensta`，yosys 综合本身不含时序分析；`DES-rra-001` 把「100 MHz 收敛」托付给 ⑥，本机无法给出数字 | 安装 OpenSTA（+ sky130 liberty）后，对 `06-checks/reports/rr_arbiter/synth/rr_arbiter.netlist.v` 做 STA（时钟 10 ns） |
-| 逻辑级数代理（yosys `ltp`） | 已尝试 `ltp -noff`（脚本内）与 `ltp`（手工补跑），在映射到 sky130 的门级网上均只报 `length=0`（路径仅 `clk` / `rst_n`），**无法作为时序代理** | 无有效替代；改为装 STA 后直接读时序报告 |
 | 非法参数 elaboration 拒绝 | `NUM_REQ < 2` / `> 8` 属 elaboration 行为，**不可用激励覆盖**（`DES-rra-001` 与 `VP-rra-001` 均已记录，故不作为 `TC-*`） | ④ 静态检查已实测：`verilator -GNUM_REQ=1` 退出码 1、`yosys` 报 `ERROR`；无需重复 |
+
+> 说明：本版起 **时序已执行**（原先的「无 STA 工具」已解决）：OpenSTA 已装到 `.tools/sta/`，
+> 并接入 `tools/sv.py gate 06`（`06-checks/cfg/sta_sky130.tcl` + `thresholds.yaml` 的 `sta.*`）。
+> 早期尝试的 yosys `ltp` 逻辑级数代理在门级网上只报 `length=0`，已废弃，不再作为时序依据。
 
 ## 结论与后续
 
-1. **lint / 格式 / 综合 / 覆盖率四项均通过**，无告警、无 waiver；
+1. **lint / 格式 / 综合 / 时序 / 覆盖率五项均通过**：无告警（verilator/verible 各 0 条）、无 waiver；
 2. 面积 **26 cells** 满足 `ARCH-001` 的 ≤150 预算，且落在预期区间 25~60 内；
-3. **唯一遗留项：时序未核验**（本机无 STA 工具）——已列补跑条件，不影响本版的功能、面积与覆盖率结论；
-4. 建议后续：装 OpenSTA 后补做一次 `NUM_REQ=4` 的 STA，并把结果回填本表「频率」行；
-   `slang` 语义检查同样待工具到位后补跑。
+3. **时序收敛**：`NUM_REQ=4` 综合网表在 10 ns（100 MHz）下 **WNS 8.71 ns、TNS 0.00 ns**，
+   推算 Fmax ≈ **775.2 MHz**（单时钟理想网络、I/O 外部延时 0）；最差路径为 `ptr_q` 寄存器 → 5 级组合 → 自身 D 端；
+4. 唯一遗留：`slang` SV 语义检查（工具未安装），已列补跑条件，不影响上述结论。
 
 ## 变更历史
 
 | 日期 | 变更 | 影响 |
 |---|---|---|
 | 2026-10-03 | 初稿：汇总 ④ 的 lint/格式证据、⑤ 的回归与覆盖率、⑥ 的 sky130 综合（26 cells）；列出 4 项未执行项（slang、STA、ltp 代理无效、非法参数不可激励） | 交付结论；未执行项待工具到位后补跑 |
-| 2026-10-03 | **人类放行**：`status: approved`，`reviewer: qiankun214（样例评审）`（样例数据，如实标注为样例评审，非真实项目评审记录） | `rr_arbiter` 样例的 ①→⑥ 全链路完成；时序核验仍为遗留项 |
+| 2026-10-03 | **人类放行**：`status: approved`，`reviewer: qiankun214（样例评审）`（样例数据，如实标注为样例评审，非真实项目评审记录） | `rr_arbiter` 样例的 ①→⑥ 全链路完成；时序核验当时仍为遗留项 |
+| 2026-10-03 | **补齐时序核验**：安装 OpenSTA 3.1.0 到 `.tools/sta/`，并接入 `tools/sv.py gate 06`（新增 `06-checks/cfg/sta_sky130.tcl`、`thresholds.yaml` 的 `sta.*`、`doctor` 的 sta 行、`docs/setup/opensta.md`、`setup.sh` 的 `setup_sta()`；⑥ 技能/CHK 模板/AGENTS §5§6/评审清单 §G 同步）。实测 `NUM_REQ=4` @10 ns：**WNS 8.71 ns、TNS 0.00 ns、推算 Fmax 775.2 MHz**；「未执行项」移除 STA 与 ltp 代理两条。原放行随内容变更作废，`status` 回到 `in_review` | 时序结论可核对；流程 ①→⑥ 完结 |
+| 2026-10-03 | **人类重放行**（`status: approved`，`reviewer: qiankun214（样例评审）`）：确认 `NUM_REQ=4` 的时序结论（WNS 8.71 ns / TNS 0.00 ns / 推算 Fmax 775.2 MHz）与建模口径 | 本版为 `rr_arbiter` 样例 ①→⑥ 的最终检查结论 |

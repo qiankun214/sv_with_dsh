@@ -21,9 +21,11 @@ artifacts: []
 | 风格 lint / 格式 | verible | | | `reports/{{MODULE}}/lint/` |
 | SV 语义 | slang | | | |
 | 综合（sky130） | yosys + sky130_fd_sc_hd | | cells: | `reports/{{MODULE}}/synth/summary.md` |
+| 静态时序 | sta（OpenSTA）+ sky130_fd_sc_hd | | WNS: ns / TNS: ns / Fmax: MHz | `reports/{{MODULE}}/sta/summary.md` |
 | 行/翻转覆盖 | cocotb + verilator --coverage | | line: % toggle: % | `reports/{{MODULE}}/cov/summary.md` |
 
 > 数字必须与原始报告一致，不允许手抄走形；缺项写明 skip 原因。
+> 时序的建模口径（时钟周期、理想时钟网络、I/O 外部延时）以 `06-checks/cfg/sta_sky130.tcl` 为准，推算 Fmax 要写明算法。
 
 ## 告警与豁免
 

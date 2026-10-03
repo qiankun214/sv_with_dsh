@@ -21,3 +21,11 @@ synth:
   area_warn_cells: 0
   # 是否要求综合必须成功（false 时综合失败也只 warn）
   require_success: true
+
+sta:
+  # OpenSTA 静态时序分析：目标时钟周期 / 时钟名 / 是否要求收敛
+  # 周期来自 REQ-001 约束（100 MHz → 10 ns）；理想时钟网络、I/O 外部延时 0
+  period_ns: 10.0
+  clock: clk
+  # true：WNS < 0 → soft warn（--strict 下即失败）
+  require_met: true

@@ -90,7 +90,7 @@ superseded_by:           # 仅 status=superseded 时填
 | 结构违规（字段缺失、ID 非法/重复、状态值非法、artifacts 指向不存在的文件） | **hard fail** | 1 |
 | 追溯断链（upstream 不存在、上游未 approved、模块缺详设、TC 无对应用例） | **hard fail** | 1 |
 | waiver 过期 | **hard fail** | 1 |
-| lint / 格式 / 综合 / 覆盖率不达标 | **soft warn** | 0（除非 `--strict`） |
+| lint / 格式 / 综合 / 时序 / 覆盖率不达标 | **soft warn** | 0（除非 `--strict`） |
 | 阶段暂无产物 | **warn** | 0 |
 | 工具未安装 | **skip + 安装提示** | 0 |
 
@@ -111,7 +111,7 @@ python3 tools/sv.py trace                  # 重算覆盖关系并写 INDEX.md
 - 位置：`06-checks/waivers/<module>.yaml`（项目级告警放 `06-checks/waivers/project.yaml`）。
 - 每条必须写全：`rule` `scope` `reason` `owner` `expires`（`YYYY-MM-DD`）。
 - **过期的 waiver 是 hard fail**，不允许用豁免长期埋掉告警。
-- 豁免只对 lint / 综合 / 覆盖率类 soft 检查有效，**不能豁免结构与追溯断链**。
+- 豁免只对 lint / 综合 / 时序 / 覆盖率类 soft 检查有效，**不能豁免结构与追溯断链**。
 
 ---
 

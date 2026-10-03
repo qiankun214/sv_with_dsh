@@ -1008,6 +1008,111 @@ def tool_synth(rep: Report, module: str, dry: bool) -> None:
             rep.good(f"{module}: Yosys + sky130 综合完成（单元数 {data['cells']}）")
 
 
+# --- ⑥ 静态时序（OpenSTA） --------------------------------------------------
+def tool_sta(rep: Report, module: str, dry: bool) -> None:
+    """用 OpenSTA 对综合后的 sky130 网表做静态时序分析（WNS/TNS + 推算 Fmax）。
+
+    依赖综合产物 `reports/<module>/synth/<module>.netlist.v`，因此必须排在 tool_synth 之后。
+    脚本模板与建模口径见 `06-checks/cfg/sta_sky130.tcl`。
+    """
+    f = module_filelist(module)
+    if f is None:
+        rep.h(f"04-rtl/{module}/{module}.f 不存在，无法做时序分析")
+        return
+    out_dir = REPORTS / module / "sta"
+    netlist = REPORTS / module / "synth" / f"{module}.netlist.v"
+    if not netlist.exists():
+        if dry:
+            rep.info(f"综合网表尚不存在（{rel(netlist)}）：--dry-run 仍打印将要执行的命令")
+        else:
+            rep.s(f"{module}: 未找到综合网表 {rel(netlist)}（先跑综合）→ 跳过时序分析")
+            return
+    env = read_pdk_env()
+    lib, _vlog, note = find_sky130(env)
+    if not lib:
+        if dry:
+            rep.info(f"sky130 PDK 未就位（{note}）：--dry-run 用占位 <SKY130_LIB> 打印命令")
+            lib = "<SKY130_LIB>"
+        else:
+            rep.s(f"sky130 PDK 未就位 → 跳过时序分析（{note}；见 docs/setup/sky130-pdk.md）")
+            return
+    if missing_tool(rep, "sta", "见 docs/setup/opensta.md", dry):
+        return
+
+    cfg = thresholds().get("sta", {}) or {}
+    period = float(cfg.get("period_ns", 10.0))
+    clk = str(cfg.get("clock", "clk"))
+    script = (
+        (CFG / "sta_sky130.tcl")
+        .read_text(encoding="utf-8")
+        .replace("{{LIB}}", lib)
+        .replace("{{NETLIST}}", str(netlist))
+        .replace("{{TOP}}", module)
+        .replace("{{CLK}}", clk)
+        .replace("{{PERIOD}}", f"{period}")
+    )
+    if not dry:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "run.tcl").write_text(script, encoding="utf-8")
+
+    log = out_dir / "sta.log"
+    rc, out = run(
+        [
+            which("sta") or "sta",
+            "-no_splash",
+            "-no_init",
+            "-exit",
+            str(out_dir / "run.tcl"),
+        ],
+        cwd=out_dir,
+        dry=dry,
+        log=log,
+    )
+    if dry:
+        rep.s("--dry-run：未实际执行时序分析")
+        return
+
+    wns_m = re.search(r"worst slack max\s+(-?[0-9.]+)", out)
+    tns_m = re.search(r"tns max\s+(-?[0-9.]+)", out)
+    wns = float(wns_m.group(1)) if wns_m else None
+    tns = float(tns_m.group(1)) if tns_m else None
+    # 单时钟、理想时钟网络下 slack 随周期线性变化：隐含最小周期 = 周期 − WNS
+    fmax = 1000.0 / (period - wns) if (wns is not None and 0 < wns < period) else None
+    data = {
+        "module": module,
+        "tool": "sta (OpenSTA) + sky130_fd_sc_hd",
+        "liberty": lib,
+        "returncode": rc,
+        "clock": clk,
+        "period_ns": period,
+        "wns_ns": wns,
+        "tns_ns": tns,
+        "fmax_mhz": round(fmax, 1) if fmax else None,
+    }
+    write_summary_json(out_dir / "summary.json", data)
+    (out_dir / "summary.md").write_text(
+        f"# {module} 时序摘要（OpenSTA + sky130）\n\n"
+        f"- Liberty：`{lib}`\n- 目标时钟：`{clk}` 周期 {period} ns\n- 返回码：{rc}\n"
+        f"- WNS：{wns if wns is not None else '未解析到'} ns\n"
+        f"- TNS：{tns if tns is not None else '未解析到'} ns\n"
+        f"- 推算 Fmax：{data['fmax_mhz'] if data['fmax_mhz'] else '—'} MHz"
+        f"（= 1000 /（周期 − WNS），单时钟理想网络、I/O 外部延时 0）\n"
+        f"- 原始日志：`{rel(log)}`\n",
+        encoding="utf-8",
+    )
+    if rc != 0:
+        rep.w(f"{module}: OpenSTA 执行失败（soft warn，详见 {rel(log)}）")
+    elif wns is None:
+        rep.w(f"{module}: 未能从 OpenSTA 输出解析 WNS（见 {rel(log)}）")
+    elif wns < 0 and cfg.get("require_met", True):
+        rep.w(f"{module}: 时序未收敛（WNS {wns} ns < 0，目标周期 {period} ns）")
+    else:
+        rep.good(
+            f"{module}: 时序收敛（WNS {wns} ns / TNS {tns} ns，"
+            f"推算 Fmax {data['fmax_mhz']} MHz）"
+        )
+
+
 # ---------------------------------------------------------------------------
 # 子命令：doctor / new / gate / trace
 # ---------------------------------------------------------------------------
@@ -1029,6 +1134,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     tools = [
         ("verilator", ("--version",), "OSS CAD Suite 或 apt"),
         ("yosys", ("-V",), "OSS CAD Suite"),
+        ("sta", ("-version",), "OpenSTA（见 docs/setup/opensta.md）"),
         ("slang", ("--version",), "OSS CAD Suite"),
         ("verible-verilog-lint", ("--version",), "verible release"),
         ("verible-verilog-format", ("--version",), "verible release"),
@@ -1305,6 +1411,8 @@ def cmd_gate(args: argparse.Namespace) -> int:
                 if stage in ("06", "all"):
                     print("\n  [⑥ 综合]")
                     tool_synth(rep, module, args.dry_run)
+                    print("\n  [⑥ 时序（OpenSTA）]")
+                    tool_sta(rep, module, args.dry_run)
 
     return rep.summary(args.strict)
 

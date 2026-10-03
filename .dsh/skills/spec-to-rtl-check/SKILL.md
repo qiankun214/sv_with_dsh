@@ -30,19 +30,21 @@ python3 tools/sv.py new chk --module rr_arbiter --title "lint 与综合检查"
 | 风格 | `verible-verilog-lint` / `-format` | `reports/<m>/lint/` |
 | SV 语义 | `slang` | 同上 |
 | 综合到网表 + 面积 | `yosys` + sky130 liberty | `reports/<m>/synth/` |
+| 静态时序（WNS/TNS） | `sta`（OpenSTA）+ sky130 liberty | `reports/<m>/sta/` |
 | 行/翻转覆盖率 | cocotb + verilator `--coverage` | `reports/<m>/cov/` |
 
 配置与阈值：
 
-- `06-checks/cfg/verilator.vlt`、`verible.rules`、`synth_sky130.ys`、`thresholds.yaml`
+- `06-checks/cfg/verilator.vlt`、`verible.rules`、`synth_sky130.ys`、`sta_sky130.tcl`、`thresholds.yaml`
 - PDK 定位：`$PDK_ROOT` / `06-checks/cfg/pdk.env`（见 `docs/setup/sky130-pdk.md`）
+- OpenSTA 安装：见 `docs/setup/opensta.md`；目标周期由 `thresholds.yaml` 的 `sta.period_ns` 给出
 
 ## 写 CHK-* 的纪律
 
 - 表里的每个数字**必须与原始报告一致**，不允许手抄走形；
 - 缺项（工具没装、PDK 缺失、被 skip）要在「未执行项」一节逐条写明原因与补跑条件；
-- 面积要与 ② 阶段的预算对照，偏差要解释；
-- 与上一版对比告警数/面积，说明变化来源。
+- 面积要与 ② 阶段的预算对照，**时序要与 ②/① 的目标频率对照**（WNS ≥ 0 即收敛；推算 Fmax 要写明推导口径）；
+- 与上一版对比告警数/面积/时序，说明变化来源。
 
 ## waiver 纪律
 
@@ -61,7 +63,7 @@ python3 tools/sv.py new chk --module rr_arbiter --title "lint 与综合检查"
 ## 完成定义
 
 1. `gate 06` 无 hard fail，且 `CHK-*` 内容与报告一致；
-2. lint 告警为 0 或已 waiver；综合成功且面积已与预算对照；
+2. lint 告警为 0 或已 waiver；综合成功且面积已与预算对照；**时序有 WNS/TNS（或明确列为未执行项）并与目标频率对照**；
 3. 未执行项已明确列出（不要掩盖 skip）；
 4. 向用户请求放行（列出结论、面积、未执行项）；放行后写 `status: approved`；
 5. `python3 tools/sv.py trace` 更新 `INDEX.md`。

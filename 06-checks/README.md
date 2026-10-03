@@ -10,7 +10,8 @@
 │   ├── verilator.vlt            # lint 规则配置
 │   ├── verible.rules            # Verible lint 规则开关
 │   ├── synth_sky130.ys          # Yosys + sky130 综合脚本
-│   ├── thresholds.yaml          # 覆盖率/面积 soft warn 阈值
+│   ├── sta_sky130.tcl           # OpenSTA 静态时序分析脚本（sky130 单元延时）
+│   ├── thresholds.yaml          # 覆盖率/面积/时序 soft warn 阈值
 │   └── pdk.env.example          # PDK 路径配置样例（复制为 pdk.env，不入库）
 ├── waivers/
 │   ├── project.yaml             # 项目级豁免
@@ -31,6 +32,7 @@
 | 风格/格式化 | `verible-verilog-lint` / `-format` | soft warn | `reports/<m>/lint/` |
 | SV 语义严格检查 | `slang` | soft warn | `reports/<m>/lint/` |
 | 综合到网表 + 面积 | `yosys` + sky130 liberty | soft warn | `reports/<m>/synth/` |
+| 静态时序（WNS/TNS） | `sta`（OpenSTA）+ sky130 liberty | soft warn | `reports/<m>/sta/` |
 | 行/翻转覆盖率 | cocotb + `verilator --coverage` | soft warn | `reports/<m>/cov/` |
 | 结构与追溯 | `tools/sv.py` | **hard fail** | `INDEX.md` |
 

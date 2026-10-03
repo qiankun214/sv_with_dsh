@@ -1,0 +1,11 @@
+{
+  "module": "rr_arbiter",
+  "tool": "sta (OpenSTA) + sky130_fd_sc_hd",
+  "liberty": "/home/alpaca/sv_with_dsh/.tools/pdk/share/pdk/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib",
+  "returncode": 0,
+  "clock": "clk",
+  "period_ns": 10.0,
+  "wns_ns": 8.71,
+  "tns_ns": 0.0,
+  "fmax_mhz": 775.2
+}

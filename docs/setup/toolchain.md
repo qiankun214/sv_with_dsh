@@ -2,6 +2,9 @@
 
 优先用仓内一键脚本 `./setup.sh`（用户态 `.tools/` + `.venv/`；系统基础包按需 `sudo apt`，无 sudo 时用 `--no-sudo` 降级）。本文是等价的手工步骤与排障参考；装完用 `python3 tools/sv.py doctor` 自检。
 
+> **OpenSTA**（`gate 06` 的静态时序分析）由 `./setup.sh` 一并构建到 `.tools/sta/`，
+> 手工步骤与排障见 [opensta.md](opensta.md)；不需要时用 `--no-sta` 跳过。
+
 ## 0. 本机现状（已核实，2026-xx 快照）
 
 | 事实 | 影响 |
