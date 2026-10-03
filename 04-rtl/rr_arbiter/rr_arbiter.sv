@@ -5,6 +5,8 @@
 // 时钟域：单时钟域 clk
 // 复位：同步复位、低有效 rst_n；只复位轮询指针 ptr_q，输出不被复位门控（DES F8）
 // 编码规范：standards/coding-standard.md（该文件当前为 PLACEHOLDER，本产物依赖该占位规范）
+// 风格约定（评审逐条核对）：一个 always 块 / assign 只给一个变量赋值，只有强关联的
+//   信号才合块（如 idx_hi/idx_lo 与扫描标志）；不使用嵌套三目（见 DES「实现规划」）。
 //
 // 功能：NUM_REQ 个请求者按轮询指针给出 one-hot 授权，授权组合透传；
 //       当前拍存在有效授权时指针推进到被授权者的下一个索引，无请求时保持。
@@ -45,29 +47,22 @@ module rr_arbiter #(
   logic               lo_found;
 
   // ---------------------------------------------------------------------------
-  // 组合逻辑：两段掩码优先级编码 + one-hot 展开 + 指针次态
-  // （先给默认值，禁止 latch；阻塞赋值）
+  // 段掩码 / 高段候选 / 授权有效 / 回绕标志：各一条 assign，一信号一条
+  // ---------------------------------------------------------------------------
+  assign mask_lo       = ~({NUM_REQ{1'b1}} << ptr_q);
+  assign req_hi        = req_i & ~mask_lo;
+  assign grant_valid_o = |req_i;
+  assign wrap_hit      = ({{(32 - IDX_W) {1'b0}}, sel_idx} == LAST_IDX);
+
+  // ---------------------------------------------------------------------------
+  // 两段最低有效位优先编码：idx_hi / idx_lo 与扫描标志强关联，合在一个块
+  // （从低位向高位扫描，命中第一个有效请求位即锁定）
   // ---------------------------------------------------------------------------
   always_comb begin
-    mask_lo       = '0;
-    req_hi        = '0;
-    idx_hi        = '0;
-    idx_lo        = '0;
-    sel_idx       = '0;
-    wrap_hit      = 1'b0;
-    ptr_d         = ptr_q;
-    grant_o       = '0;
-    grant_valid_o = 1'b0;
-    hi_found      = 1'b0;
-    lo_found      = 1'b0;
-
-    // 1) 低位段掩码：mask_lo[k] = (k < ptr_q)
-    mask_lo       = ~({NUM_REQ{1'b1}} << ptr_q);
-
-    // 2) 高段候选：索引 >= ptr_q 的请求
-    req_hi        = req_i & ~mask_lo;
-
-    // 3) 两段各自的最低有效请求位（无候选时保持 0，被选择条件屏蔽）
+    idx_hi   = '0;
+    idx_lo   = '0;
+    hi_found = 1'b0;
+    lo_found = 1'b0;
     for (int unsigned k = 0; k < NUM_REQ; k++) begin
       if (!lo_found && req_i[k]) begin
         idx_lo   = k[IDX_W-1:0];
@@ -78,20 +73,41 @@ module rr_arbiter #(
         hi_found = 1'b1;
       end
     end
+  end
 
-    // 4) 选择：高段有候选取高段（指针起点优先），否则回绕取 req_i 最低位
-    sel_idx = (req_hi != {NUM_REQ{1'b0}}) ? idx_hi : idx_lo;
+  // ---------------------------------------------------------------------------
+  // 选择索引：高段有候选取高段（指针起点优先），否则回绕取 req_i 最低位
+  // ---------------------------------------------------------------------------
+  always_comb begin
+    if (req_hi != {NUM_REQ{1'b0}}) begin
+      sel_idx = idx_hi;
+    end else begin
+      sel_idx = idx_lo;
+    end
+  end
 
-    // 5) 授权输出（组合透传，不寄存）
-    grant_valid_o = |req_i;
+  // ---------------------------------------------------------------------------
+  // 授权 one-hot 展开（组合透传；无授权时全 0）
+  // ---------------------------------------------------------------------------
+  always_comb begin
     if (grant_valid_o) begin
       grant_o = {{(NUM_REQ - 1) {1'b0}}, 1'b1} << sel_idx;
+    end else begin
+      grant_o = '0;
     end
+  end
 
-    // 6) 指针次态：有授权时推进到被授权者下一位，末位回绕到 0；无请求保持
-    wrap_hit = ({{(32 - IDX_W) {1'b0}}, sel_idx} == LAST_IDX);
+  // ---------------------------------------------------------------------------
+  // 指针次态：有授权时推进到被授权者下一位，末位回绕到 0；无请求保持
+  // ---------------------------------------------------------------------------
+  always_comb begin
+    ptr_d = ptr_q;
     if (grant_valid_o) begin
-      ptr_d = wrap_hit ? '0 : (sel_idx + {{(IDX_W - 1) {1'b0}}, 1'b1});
+      if (wrap_hit) begin
+        ptr_d = '0;
+      end else begin
+        ptr_d = sel_idx + {{(IDX_W - 1) {1'b0}}, 1'b1};
+      end
     end
   end
 

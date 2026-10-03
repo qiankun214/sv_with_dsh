@@ -26,11 +26,19 @@ python3 tools/sv.py new rtl --module rr_arbiter --title "轮询仲裁器"
 
 编码要求（细节以 `standards/coding-standard.md` 为准）：
 
-1. 只用 `always_ff` / `always_comb`；非阻塞与阻塞赋值不混用；
-2. 每个 `always_comb` 先给默认值，禁止推断 latch；
-3. 所有端口/信号/参数显式位宽，比较两侧位宽一致，常量带位宽与进制；
-4. 同步复位低有效（`rst_n`），异步必须有详设里的理由；
-5. 每个模块头部注释写清：功能、时钟域、复位方式、对应的 `DES-*`。
+1. **一个 `always` 块或 `assign` 只允许给一个变量赋值**；只有「赋值条件完全相同、且含义强关联」的变量才可以放进同一个 `always` 块
+   （例：同一个优先编码器里的 `idx_hi` / `idx_lo` 与扫描标志 `hi_found` / `lo_found`）。
+   不要把一组无关的组合信号塞进同一个 `always_comb`；`always_ff` 同理，一个块只驱动一组同源寄存器。
+   纯表达式优先用 `assign`（一信号一条），过程式条件用单变量 `always_comb`。
+2. **不允许嵌套三元运算符**。单层三目可用；需要多级条件时用 `if` / `else if` / `else`（分支里只给同一个变量赋值）。
+3. 只用 `always_ff` / `always_comb`；非阻塞与阻塞赋值不混用；
+4. 每个 `always_comb` 先给默认值，禁止推断 latch；
+5. 所有端口/信号/参数显式位宽，比较两侧位宽一致，常量带位宽与进制；
+6. 同步复位低有效（`rst_n`），异步必须有详设里的理由；
+7. 每个模块头部注释写清：功能、时钟域、复位方式、对应的 `DES-*`。
+
+> 第 1、2 条由人类评审者于 2026-10-03 明确要求，已同步进 `tools/templates/RTL.template.sv`
+> 与 `standards/review-checklist.md` §E；`gate 04` 只查 lint/格式，这两条靠**评审**核对。
 
 ## 自检
 

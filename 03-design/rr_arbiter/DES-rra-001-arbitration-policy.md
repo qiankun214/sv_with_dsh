@@ -76,12 +76,14 @@ artifacts:
 
 1. **低位段掩码** `mask_lo`：把指针之前的索引圈出来，`mask_lo[k] = (k < ptr_q)`（等价于在 `NUM_REQ` 位宽内计算 `(1 << ptr_q) - 1`）。
 2. **高段候选** `req_hi = req_i & ~mask_lo`：`REQ-001` F2 里「索引 ≥ `ptr_q`」的候选请求。
-3. **两段最低有效位优先编码**：对 `req_hi` 与 `req_i` 分别取最低有效请求位，得到 `idx_hi` 与 `idx_lo`（`always_comb` 内 `for` 从低位向高位扫描，命中即锁定）。
-4. **选择** `sel_idx = (req_hi != 0) ? idx_hi : idx_lo`：高段有候选就取高段（指针起点优先），否则回绕取 `req_i` 的最低位——`REQ-001` F2「其后按索引循环顺序依次降低」。
-5. **one-hot 展开** `grant_o`：`grant_o[sel_idx] = 1`，其余 0，在 `NUM_REQ` 位宽内计算。
-6. **指针次态** `ptr_d`：`grant_valid_o ? (wrap_hit ? 0 : sel_idx + 1) : ptr_q`，其中 `wrap_hit = (sel_idx == NUM_REQ-1)`——`REQ-001` F3 的「推进到被授权者的下一个索引」，回绕用索引比较而非取模。
+3. **两段最低有效位优先编码**：`idx_hi` / `idx_lo` 与各自的扫描标志 `hi_found` / `lo_found` 合在**同一个** `always_comb`（四者同属一个优先编码器，属强关联信号）：`for` 从低位向高位扫描，命中第一个有效请求位即锁定（标志置 1），得到该段的最低有效位索引。
+4. **选择** `sel_idx`：`req_hi != 0` 取 `idx_hi`，否则取 `idx_lo`（`if`/`else`）——高段有候选就取高段（指针起点优先），否则回绕取 `req_i` 的最低位，即 `REQ-001` F2「其后按索引循环顺序依次降低」。
+5. **one-hot 展开** `grant_o`：`grant_valid_o = 1` 时 `grant_o = one-hot(sel_idx)`，否则全 0（`if`/`else`，不用三目）。
+6. **指针次态** `ptr_d`：默认 `ptr_d = ptr_q`；`grant_valid_o = 1` 时若 `wrap_hit` 则置 0，否则 `sel_idx + 1`（`if`/`else`）。`wrap_hit = (sel_idx == NUM_REQ-1)`——`REQ-001` F3 的「推进到被授权者的下一个索引」，回绕用索引比较而非取模。
 
-**优先编码的零输入口径**：`idx_hi` / `idx_lo` 在各自输入全 0 时编码为 `0`。由于 `sel_idx` 的选择条件是 `req_hi != 0`，`idx_hi` 的零值只在 `req_hi == 0` 时被丢弃；而 `req_i == 0` 时 `grant_valid_o = 0`、`grant_o = 0`、指针保持，`sel_idx` 不参与输出与推进。
+**与 RTL 编码风格的对应**（④ 技能硬性要求，评审逐条核对）：`mask_lo` / `req_hi` / `grant_valid_o` / `wrap_hit` 各由**一条 `assign`** 给出；`sel_idx` / `grant_o` / `ptr_d` 各由**一个只给它赋值的 `always_comb`**（内部用 `if`/`else`，**不用嵌套三目**）；只有**强关联**的 `idx_hi` / `idx_lo` / `hi_found` / `lo_found` 合在同一个 `always_comb`。④ 不得把无关信号合进同一个块。
+
+**优先编码的零输入口径**：`hi_found` / `lo_found` 在对应输入全 0 时保持 0，`idx_hi` / `idx_lo` 编码为 `0`。由于 `sel_idx` 的选择条件是 `req_hi != 0`，`idx_hi` 的零值只在 `req_hi == 0` 时被丢弃；而 `req_i == 0` 时 `grant_valid_o = 0`、`grant_o = 0`、指针保持，`sel_idx` 不参与输出与推进。
 
 **位宽与推导**（无隐式截断）：
 
@@ -90,7 +92,8 @@ artifacts:
 | `ptr_q` / `ptr_d` | `IDX_W` | 指针现态 / 次态，取值 `0..NUM_REQ-1` |
 | `mask_lo` | `NUM_REQ` | `mask_lo[k] = (k < ptr_q)`，在 `NUM_REQ` 位宽内计算 |
 | `req_hi` | `NUM_REQ` | `req_i & ~mask_lo` |
-| `idx_hi` / `idx_lo` | `IDX_W` | 两段各自的最低有效请求位索引 |
+| `idx_hi` / `idx_lo` | `IDX_W` | 两段各自的最低有效请求位索引（由带扫描标志的优先编码得到） |
+| `hi_found` / `lo_found` | 1 | 优先编码的扫描标志（命中即锁定），与 `idx_*` 同属一个编码器 |
 | `sel_idx` | `IDX_W` | 选中索引 |
 | `grant_o` | `NUM_REQ` | one-hot 展开，在 `NUM_REQ` 位宽内计算 |
 | `grant_valid_o` | 1 | `|req_i` |
@@ -131,8 +134,10 @@ artifacts:
 |---|---|---|---|---|---|
 | `mask_lo` | 组合 | `NUM_REQ` | 「索引 < `ptr_q`」的低位段掩码 | `ptr_q` | `req_hi` |
 | `req_hi` | 组合 | `NUM_REQ` | 「索引 ≥ `ptr_q`」的高段候选请求 | `req_i`、`mask_lo` | `idx_hi`、`sel_idx` 选择 |
-| `idx_hi` | 组合 | `IDX_W` | `req_hi` 的最低有效请求位索引 | `req_hi` | `sel_idx` |
-| `idx_lo` | 组合 | `IDX_W` | `req_i` 的最低有效请求位索引（回绕段） | `req_i` | `sel_idx` |
+| `idx_hi` | 组合 | `IDX_W` | `req_hi` 的最低有效请求位索引 | `req_hi`、`hi_found` | `sel_idx` |
+| `idx_lo` | 组合 | `IDX_W` | `req_i` 的最低有效请求位索引（回绕段） | `req_i`、`lo_found` | `sel_idx` |
+| `hi_found` | 组合 | 1 | 高段优先编码的扫描标志（命中即锁定） | `req_hi` | `idx_hi` |
+| `lo_found` | 组合 | 1 | 回绕段优先编码的扫描标志（命中即锁定） | `req_i` | `idx_lo` |
 | `sel_idx` | 组合 | `IDX_W` | 本拍被选中的请求者索引 | `req_hi`、`idx_hi`、`idx_lo` | `grant_o`、`wrap_hit`、`ptr_d` |
 | `wrap_hit` | 组合 | 1 | `sel_idx == NUM_REQ-1`，即推进需要回绕到 0 | `sel_idx` | `ptr_d` |
 | `ptr_d` | 组合 | `IDX_W` | 指针次态 | `grant_valid_o`、`wrap_hit`、`sel_idx`、`ptr_q` | `ptr_q` 的 D 端 |
@@ -209,7 +214,7 @@ artifacts:
 |---|---|
 | `parameter` / `localparam` / `$clog2` | 常量求值，可综合 |
 | `1 << ptr_q` 形式的变量移位与 `- 1` 掩码 | 综合为译码/移位组合逻辑，Yosys 可映射到 sky130 组合单元 |
-| `for` 循环逐位优先编码（`always_comb` + 默认赋值） | 展开为组合逻辑；所有分支有默认赋值，无 latch |
+| `for` 循环逐位优先编码（`always_comb` + 默认赋值 + 扫描标志） | 展开为组合逻辑；所有分支有默认赋值，无 latch |
 | 相等比较 `sel_idx == NUM_REQ-1`、逻辑与/或/非 | 映射到 `sky130_fd_sc_hd` 组合单元 |
 | `always_ff @(posedge clk)` 中的 `IDX_W` 位寄存器 | 映射为 `sky130_fd_sc_hd__dfxtp` 类触发器（≤3 个） |
 | 阵列 / 存储器 | **不使用**，不存在「存储器退化为触发器」的代价 |
@@ -223,3 +228,5 @@ artifacts:
 | 2026-10-03 | 按人类评审意见重构正文结构：新增「数据通路实现概要」「控制通路实现概要」「实现规划（寄存器 + 全部组合变量清单）」三节；控制通路明确**不使用 FSM** 并给出理由（避免死状态或破坏组合透传/当拍推进）；原「状态机」「数据通路」两节并入上述三节；该结构回流到 DES 模板、③ 技能与 `03-design/README.md` | ④ 按新的信号清单与命名写 RTL；③ 产物结构约定更新 |
 | 2026-10-03 | 按人类评审意见补时序规划：新增「端口时序」（引用 `REQ-001` 的 5 个场景，不重画）与「内部时序」（4 张 WaveDrom 图：轮询推进 / 空闲保持 / 复位只复位指针 / 请求逐拍变化，图件与图源入同名目录并计入 `artifacts`）；补充「优先编码零输入口径」（`idx_*` 全 0 时编码 0，被 `req_hi != 0` 屏蔽）；该结构回流到 DES 模板、③ 技能与 README | ④ 按内部时序图核对 `ptr_q`/`sel_idx`/`ptr_d`；⑤ 可据内部时序写断言 |
 | 2026-10-03 | **人类放行**：`status: approved`，`reviewer: qiankun214（样例评审）`（样例数据，如实标注为样例评审，非真实项目评审记录）；本版作为 ④ RTL 的唯一契约 | 解锁 ④；④ 的端口/信号名/时序逐条对照本产物 |
+| 2026-10-03 | 按人类评审提出的**编码风格要求**（一个 `always` 块/`assign` 只给一个变量赋值，强关联信号可同块；禁止嵌套三目）调整实现描述：`mask_lo` / `req_hi` / `grant_valid_o` / `wrap_hit` 各用一条 `assign`；`sel_idx` / `grant_o` / `ptr_d` 各用一个只给它赋值的 `always_comb`（`if`/`else`）；优先编码的 `idx_hi` / `idx_lo` 与扫描标志 `hi_found` / `lo_found` 作为强关联信号同块；**不新增信号**（`hi_found` / `lo_found` 补入组合变量清单，此前 RTL 已有但清单漏列）。风格要求回流到 ④ 技能、`tools/templates/RTL.template.sv` 与评审清单 §E。原放行随内容变更作废，`status` 回到 `in_review` | ④ 按新信号清单与分块风格重写 RTL；⑤ 的 `TC-*` 观测判据不变（行为等价） |
+| 2026-10-03 | **人类重放行**（`status: approved`，`reviewer: qiankun214（样例评审）`）：确认「不新增信号、强关联同块」的口径；④ RTL 已按此重写，回归 40/40 通过、覆盖率 line 100.0% / toggle 96.9%（与改风格前一致） | 解锁 ④/⑤ 复跑；本版仍为 RTL 唯一契约 |

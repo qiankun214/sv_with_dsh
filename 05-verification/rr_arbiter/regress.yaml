@@ -1,0 +1,26 @@
+# rr_arbiter 回归配置（gate 05 读取本文件；VP-rra-001 的 TC-* 必须在此有同名映射）
+#
+# - tests: TC-* → cocotb 用例（test_module.function），run_tests.py 按此列表执行
+# - params: 参数档位扫描（ARCH-001 回归档 2/4/8 + DES-rra-001 边界「非 2 的幂」3/5）
+# - coverage_param: 只对该档采 line/toggle 覆盖率（多档合并会混淆不同参数下的分支）
+module: rr_arbiter
+sim: verilator
+toplevel: rr_arbiter
+
+tests:
+  TC-rra-001: tests.test_rr_arbiter.tc_rra_001_single_request_holds
+  TC-rra-002: tests.test_rr_arbiter.tc_rra_002_full_request_round_robin
+  TC-rra-003: tests.test_rr_arbiter.tc_rra_003_idle_hold
+  TC-rra-004: tests.test_rr_arbiter.tc_rra_004_reset_only_resets_pointer
+  TC-rra-005: tests.test_rr_arbiter.tc_rra_005_request_change
+  TC-rra-006: tests.test_rr_arbiter.tc_rra_006_interface_invariants_random
+  TC-rra-007: tests.test_rr_arbiter.tc_rra_007_fairness_no_starvation
+  TC-rra-008: tests.test_rr_arbiter.tc_rra_008_parameter_sweep_wrap
+
+params: [2, 3, 4, 5, 8]
+coverage_param: 4
+seed: 20261003
+
+coverage:
+  line_warn: 80
+  toggle_warn: 60
