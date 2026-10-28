@@ -1,0 +1,48 @@
+{
+  "head": {
+    "text": "Scenario 9: config write then read, one-cycle read latency",
+    "tick": 0
+  },
+  "foot": {
+    "text": "1 clk = 2 ticks; write CONTROL=0x1, read back 0x1 in the next cycle"
+  },
+  "config": {
+    "hscale": 1.8
+  },
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "10101010101010"
+    },
+    {
+      "name": "cfg_we",
+      "wave": "0.1.0........."
+    },
+    {
+      "name": "cfg_re",
+      "wave": "0.....1.0....."
+    },
+    {
+      "name": "cfg_addr",
+      "wave": "x.2.x.2.x.....",
+      "data": [
+        "0x0",
+        "0x0"
+      ]
+    },
+    {
+      "name": "cfg_wdata",
+      "wave": "x.2.x.........",
+      "data": [
+        "0x1"
+      ]
+    },
+    {
+      "name": "cfg_rdata",
+      "wave": "x.......2.x...",
+      "data": [
+        "0x1"
+      ]
+    }
+  ]
+}

@@ -2,11 +2,11 @@
 
 | 项 | 值 |
 |---|---|
-| 生成日期 | 2026-10-03 |
+| 生成日期 | 2026-10-28 |
 | 仓库 | `/home/alpaca/sv_with_dsh` ↔ <https://github.com/qiankun214/sv_with_dsh>（public，默认分支 `main`） |
 | 上一版交接文档 | 提交 `0faaede` 时的内容（① ② ③ 已放行、④ 未开始）；本文件取代它，旧版仍在 git 历史里 |
 | 本次提交 | `466d5c1`（④ RTL 初版）、`2507c6d`（⑤ `VP-rra-001` 放行 + ④ 按新编码风格重写）、`9572ec5`（⑥ `CHK-rra-001` 放行）、`75232d1`（交接文档）、`401de21`（⑥ 接入 OpenSTA 补齐时序）、`30223d3`（交接文档）、`286e51a`（⑥ 接入 slang 补齐 SV 语义）、本文件随后补提交 |
-| 进度 | **① `REQ-001`、② `ARCH-001`、③ `DES-rra-001`、⑤ `VP-rra-001`、⑥ `CHK-rra-001` 全部 `approved`**；④ RTL 已完成并通过 `gate 04`（④ 无单独人工关口，放行体现在 ③ 已 approved） |
+| 进度 | **① `REQ-001`、② `ARCH-001`、③ `DES-rra-001`、⑤ `VP-rra-001`、⑥ `CHK-rra-001` 全部 `approved`**；④ RTL 已完成并通过 `gate 04`；2026-10-28 新增 `REQ-002`（IPv4/UDP 解析）初稿，已过 `gate 01`，待 ① 放行 |
 
 > 本文件取代上一版交接文档。凡与旧版冲突处，以本版为准。
 
@@ -20,6 +20,8 @@
 `CHK-rra-001`（lint 0 告警、**slang 语义 0 errors / 0 warnings**、sky130 综合 **26 cells**、**OpenSTA 时序 WNS 8.71 ns / 推算 Fmax 775.2 MHz**、覆盖率 line 100.0% / toggle 96.9%）。
 `gate all` = **9 ok / 1 warn / 0 skip / 0 hard**，`trace` 0 warn，覆盖链完整、未覆盖清单为空。
 **六项检查（lint / 格式 / SV 语义 / 综合 / 时序 / 覆盖率）全部有实测结论，没有待补检查项。**
+
+2026-10-28 新增 `REQ-002`（IPv4/UDP 解析）初稿，已过 `gate 01`，等待 ① 放行；该功能点尚未进入 ②。
 
 ## 2. 本轮（2026-10-03）做了什么
 
@@ -191,3 +193,4 @@ python3 tools/sv.py trace    # 0 warn
 | 2026-10-03 | 交接文档更新（含时序核验与 OpenSTA 工具链） | `30223d3` |
 | 2026-10-03 | **⑥ 接入 slang 补齐 SV 语义**：lint 阶段加 `slang --lint-only` + `setup.sh` 的 `setup_slang()` + `docs/setup/slang.md`；`CHK-rra-001` 回填 errors 0 / warnings 0 并重放行（六项检查全部有实测结论） | `286e51a` |
 | 2026-10-03 | 交接文档更新（slang 与「无待补检查项」） | 本文件提交 |
+| 2026-10-28 | **新增 `REQ-002` IPv4/UDP 解析初稿**（`draft`，待 ① 放行）：IPv4-only、32-bit 数据、低字节在前、sop/eop 定界、info 240 bit 每包一拍、4-bit keep、双校验可由 memory-like 寄存器开关、error 单周期脉冲 + STATUS/ERR_CNT；10 张 WaveDrom 场景图；`gate 01` 通过 | 本轮提交 |

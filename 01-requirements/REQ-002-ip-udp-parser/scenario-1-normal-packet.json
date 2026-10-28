@@ -1,0 +1,110 @@
+{
+  "head": {
+    "text": "Scenario 1: one normal UDP packet, 8-byte payload",
+    "tick": 0
+  },
+  "foot": {
+    "text": "1 clk = 2 ticks; info is accepted before the first payload beat"
+  },
+  "config": {
+    "hscale": 1.8
+  },
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "101010101010101010101010"
+    },
+    {
+      "name": "rst_n",
+      "wave": "1......................."
+    },
+    {
+      "name": "s_valid",
+      "wave": "0.1.............0.1...0."
+    },
+    {
+      "name": "s_ready",
+      "wave": "1...............0.1....."
+    },
+    {
+      "name": "s_data",
+      "wave": "x.2.2.2.2.2.2.2.x.2.2.x.",
+      "data": [
+        "H0",
+        "H1",
+        "H2",
+        "H3",
+        "H4",
+        "H5",
+        "H6",
+        "P0",
+        "P1"
+      ]
+    },
+    {
+      "name": "s_sop",
+      "wave": "0.1.0.............1.0..."
+    },
+    {
+      "name": "s_eop",
+      "wave": "0...................1.0."
+    },
+    {
+      "name": "info_valid",
+      "wave": "0...............1.0....."
+    },
+    {
+      "name": "info_ready",
+      "wave": "1......................."
+    },
+    {
+      "name": "info_data",
+      "wave": "x...............2.x.....",
+      "data": [
+        "INFO"
+      ]
+    },
+    {
+      "name": "m_valid",
+      "wave": "0...................1..."
+    },
+    {
+      "name": "m_ready",
+      "wave": "1......................."
+    },
+    {
+      "name": "m_data",
+      "wave": "x...................2.2.",
+      "data": [
+        "P0",
+        "P1"
+      ]
+    },
+    {
+      "name": "m_keep",
+      "wave": "x...................2...",
+      "data": [
+        "1111"
+      ]
+    },
+    {
+      "name": "m_sop",
+      "wave": "0...................1.0."
+    },
+    {
+      "name": "m_eop",
+      "wave": "0.....................1."
+    },
+    {
+      "name": "error_irq",
+      "wave": "0......................."
+    },
+    {
+      "name": "error_code",
+      "wave": "3.......................",
+      "data": [
+        "0"
+      ]
+    }
+  ]
+}

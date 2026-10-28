@@ -1,0 +1,92 @@
+{
+  "head": {
+    "text": "Scenario 8: synchronous reset",
+    "tick": 0
+  },
+  "foot": {
+    "text": "1 clk = 2 ticks; all outputs are low while rst_n is low"
+  },
+  "config": {
+    "hscale": 1.8
+  },
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "10101010101010"
+    },
+    {
+      "name": "rst_n",
+      "wave": "0.....1......."
+    },
+    {
+      "name": "s_valid",
+      "wave": "0.1...0......."
+    },
+    {
+      "name": "s_ready",
+      "wave": "0.....1......."
+    },
+    {
+      "name": "s_data",
+      "wave": "x.2...x.......",
+      "data": [
+        "H0"
+      ]
+    },
+    {
+      "name": "s_sop",
+      "wave": "0.1...0......."
+    },
+    {
+      "name": "s_eop",
+      "wave": "0............."
+    },
+    {
+      "name": "info_valid",
+      "wave": "0............."
+    },
+    {
+      "name": "info_ready",
+      "wave": "1............."
+    },
+    {
+      "name": "info_data",
+      "wave": "x............."
+    },
+    {
+      "name": "m_valid",
+      "wave": "0............."
+    },
+    {
+      "name": "m_ready",
+      "wave": "1............."
+    },
+    {
+      "name": "m_data",
+      "wave": "x............."
+    },
+    {
+      "name": "m_keep",
+      "wave": "x............."
+    },
+    {
+      "name": "m_sop",
+      "wave": "0............."
+    },
+    {
+      "name": "m_eop",
+      "wave": "0............."
+    },
+    {
+      "name": "error_irq",
+      "wave": "0............."
+    },
+    {
+      "name": "error_code",
+      "wave": "3.............",
+      "data": [
+        "0"
+      ]
+    }
+  ]
+}
