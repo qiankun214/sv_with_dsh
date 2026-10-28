@@ -1489,12 +1489,14 @@ def _trace_model(arts: list[Artifact], by_id: dict[str, Artifact]) -> dict:
         d_ok = [a for a in des if set(a.upstream) & arch_ids or any(u in arch_ids for u in a.upstream)]
         d_ids = {a.id for a in d_ok}
         tcs: list[tuple[str, str]] = []
+        mods_for_req = {a.module for a in d_ok if a.module}
         for vp in vps:
             for tc in vp.meta.get("test_cases") or []:
                 if isinstance(tc, dict) and req_id in [str(c) for c in (tc.get("covers") or [])]:
                     tcs.append((str(tc.get("id", "?")), vp.id))
-        mods_with_vp = {vp.module for vp in vps}
-        c_ok = [c for c in chks if c.module in mods_with_vp]
+                    if vp.module:
+                        mods_for_req.add(vp.module)
+        c_ok = [c for c in chks if c.module in mods_for_req]
         _ = d_ids
         return a_ok, d_ok, tcs, c_ok
 
