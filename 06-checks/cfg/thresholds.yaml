@@ -1,4 +1,4 @@
-# 检查门禁的 soft warn 阈值（hard fail 项不在此文件，见 AGENTS.md §5）
+# 检查门禁的 soft warn 阈值（hard fail 项不在此文件，见 spec-to-rtl 技能「门禁强度」）
 #
 # 修改阈值属于流程决策，请连同 06-checks/<module>/CHK-*.md 的结论一起评审。
 

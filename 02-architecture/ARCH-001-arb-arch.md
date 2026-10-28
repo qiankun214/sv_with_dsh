@@ -7,7 +7,6 @@ reviewer: qiankun214（样例评审）
 date: 2026-10-03
 upstream: [REQ-001]
 artifacts:
-  - 02-architecture/ARCH-001-arb-arch/README.md
   - 02-architecture/ARCH-001-arb-arch/block-diagram.md
 ---
 

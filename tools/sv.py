@@ -8,7 +8,7 @@
     python3 tools/sv.py gate <01|02|03|04|05|06|all> [--module M] [--strict] [--dry-run]
     python3 tools/sv.py trace [--check] [--strict]
 
-设计约束（与 AGENTS.md 对齐）：
+设计约束（与 spec-to-rtl 技能总纲对齐）：
   * 依赖只有 Python 3 与 PyYAML；不需要 make，不需要 pip 安装任何东西。
   * 结构与追溯断链 = hard fail；lint/综合/覆盖率 = soft warn（--strict 升级）；工具缺失 = skip。
   * 任何调用外部工具的地方都必须支持 --dry-run（只打印命令，不执行）。
@@ -860,7 +860,7 @@ def tool_sim(rep: Report, module: str, by_id: dict[str, Artifact], dry: bool) ->
     ver_dir = ROOT / STAGE_DIRS["05"] / module
     runner = ver_dir / "run_tests.py"
     if not runner.exists():
-        rep.h(f"05-verification/{module}/run_tests.py 不存在（自测入口，见阶段 README）")
+        rep.h(f"05-verification/{module}/run_tests.py 不存在（自测入口，见 spec-to-rtl-verify 技能）")
         return
     regress = ver_dir / "regress.yaml"
     tests: dict = {}
@@ -879,7 +879,7 @@ def tool_sim(rep: Report, module: str, by_id: dict[str, Artifact], dry: bool) ->
         except Exception as exc:
             rep.h(f"{rel(regress)} 解析失败：{exc}")
 
-        # TC-* ↔ regress.yaml 双向核对（AGENTS.md §3：缺用例是 hard fail）
+        # TC-* ↔ regress.yaml 双向核对（spec-to-rtl §3：缺用例是 hard fail）
         tc_ids = [
             str(tc.get("id"))
             for vp in by_id.values()
@@ -1282,7 +1282,7 @@ def cmd_new(args: argparse.Namespace) -> int:
             print("  new module 需要 --module <模块名>")
             return 2
         if not args.short:
-            print("  new module 需要 --short <短名>（见 AGENTS.md §2）")
+            print("  new module 需要 --short <短名>（见 spec-to-rtl-design 技能）")
             return 2
         if name in mods:
             print(f"  模块 {name} 已存在")
@@ -1437,7 +1437,7 @@ def cmd_gate(args: argparse.Namespace) -> int:
         for req in _req_without_tc(arts, by_id):
             rep.w(f"{req}: 没有任何 TC-* 覆盖（soft warn）")
 
-    # 工具类检查：结构/追溯已经 hard fail 时不再调用工具（AGENTS.md §5：遇 hard fail 立即停）
+    # 工具类检查：结构/追溯已经 hard fail 时不再调用工具（spec-to-rtl §5：遇 hard fail 立即停）
     tool_stages = {"04", "05", "06"}
     if stage in tool_stages or stage == "all":
         if rep.hard:

@@ -18,6 +18,12 @@
       "sourceType": "github",
       "skillPath": "skills/productivity/handoff/SKILL.md",
       "computedHash": "20e5f4afdef502637510bc5c64d27645d3c85c88df9cb006824bbb0980166319"
+    },
+    "zh-tech-writing": {
+      "source": "leter/zh-tech-writing",
+      "sourceType": "github",
+      "skillPath": "skills/zh-tech-writing/SKILL.md",
+      "computedHash": "c4acd809de94a4acaf7a26943e3ec0dd16b5042413d22b4f228f70511d6c0ced"
     }
   }
 }

@@ -5,23 +5,25 @@ description: 阶段③详细设计：把系统方案细化到可据以写 RTL �
 
 # ③ 详细设计
 
-产出 `03-design/<module>/DES-<short>-<nnn>-<slug>.md`（按需加 `REGMAP-*` 寄存器表、`IFACE-*` 接口时序）。
-上游必须是**已 approved** 的 `ARCH-*`。**这是 RTL 的唯一契约**：RTL 阶段不允许写详设里没有的端口或行为。
+产出 `03-design/<module>/` 下的模块契约与实现级设计：`module.yaml` + `DES-<short>-<nnn>-<slug>.md`
+（按需加 `REGMAP-*` 寄存器表、`IFACE-*` 接口时序）。上游是**已 approved** 的 `ARCH-*`，门禁 `gate 03 --module M`。
 
-## 文档必须由 `grill-me` 讨论产出（强制）
+**这是 RTL 的唯一契约**：RTL 阶段不允许写详设里没有的端口或行为。
 
-**本阶段文档不允许「先写完再评审」**：必须先用 `grill-me`（执行 `grilling` 技能）与用户逐轮质询式讨论，
-把设计问到完善，再落成 `DES-*`（以及 `REGMAP-*`/`IFACE-*`）。讨论是产出文档的**必经过程**，不是可选项。
+## 1. 文档必须由 grill-me 讨论产出（强制）
+
+**不允许「先写完再评审」**：先用 `grill-me`（执行 `grilling` 技能）与用户逐轮质询式讨论，把设计问到完善，
+再落成 `DES-*`（以及 `REGMAP-*`/`IFACE-*`）。讨论是产出文档的**必经过程**。
 
 - **事实自己查**：模板、上游 `ARCH-*`/`REQ-*`、`03-design/<module>/module.yaml`、`standards/coding-standard.md`、
   `tools/sv.py` 规则、已有详设——能查到的不要拿去问用户；已定决策涉及的文档要重读，发现矛盾先报告；
-- **每轮一次 `ask_user_question`**：把该轮决策点做成卡片（稳定 `id` + 短 `header`，推荐项放第一并标「（推荐）」+ 一句取舍说明），
-  用户也可以直接写自己的答案；不要用散文复述选项，也不要一次抛一堆散问题；
+- **每轮一次 `ask_user_question`**：决策点做成卡片（稳定 `id` + 短 `header`，推荐项放第一并标「（推荐）」+ 一句取舍说明），
+  用户也可以直接写答案；不要用散文复述选项，也不要一次抛一堆散问题；
 - 讨论到**没有未决问题、每一节都能落下确定内容**为止。
 
 **「完善」的判定（缺一不可）**：
 
-1. 正文没有任何 `TODO` / `<占位>` / 「实现时再定」「视情况而定」式的表述；
+1. 正文没有任何 `TODO` / `<占位>` / 「实现时再定」「视情况而定」式表述；
 2. 端口表**逐条齐全**（方向、位宽、时钟域、复位值、含义），且与 ① 的端口表、② 的接口协议**逐条一致**；
 3. 参数有默认值 + 合法范围 + **非法参数的行为**；
 4. **数据通路实现概要**：实现步骤清楚（选路/运算/编码），位宽推导无隐式截断，溢出/饱和/对齐策略明确，关键组合路径写明；
@@ -34,9 +36,43 @@ description: 阶段③详细设计：把系统方案细化到可据以写 RTL �
 11. `module.yaml` 的 `implements` 覆盖本模块**全部** `DES-*`/`REGMAP-*`/`IFACE-*`，`id_short` 与目录名契约一致；
 12. 用户逐节确认过，并明确同意放行。
 
-结论写进产物正文与变更历史；**不要把问答过程抄进产物**。讨论中形成的规范级结论必须回流到本技能或模板。
+结论写进产物正文与变更历史；**不把问答过程抄进产物**。规范级结论必须回流到本技能或模板。
 
-## 步骤
+## 2. 目录与命名
+
+```
+03-design/
+├── rr_arbiter/
+│   ├── module.yaml                        # 模块契约（唯一身份来源）
+│   ├── DES-rra-001-arbitration-policy.md  # 详设
+│   ├── DES-rra-002-fsm.md
+│   ├── REGMAP-rra-001-registers.md        # 专项：寄存器表（REGMAP.template.md）
+│   └── IFACE-rra-001-port-timing.md       # 专项：接口/时序（IFACE.template.md）
+└── dma/
+    ├── module.yaml
+    └── DES-dma-001-burst-split.md
+```
+
+- 目录名 = ② 里的 module 名 = `04-rtl/<module>/` 目录名 = 顶层模块名。
+- ID 用短名：`DES-rra-001`、`REGMAP-rra-001`、`IFACE-rra-001`（与 `DES-*` 同阶段同上游）。
+- 文件名 = `ID + kebab 短描述`。
+
+## 3. module.yaml：唯一模块契约
+
+```yaml
+module: rr_arbiter
+id_short: rra          # 小写字母开头，2–8 位 [a-z0-9_]；全仓唯一；DES/VP/TC/CHK 的 ID 都用它
+owner: agent
+rtl_toplevel: rr_arbiter
+implements: [DES-rra-001, DES-rra-002]     # 由 `sv.py new des/regmap/iface` 自动追加
+files: [rr_arbiter.sv, rr_arbiter_ctrl.sv] # 由 ④ 阶段维护，必须存在于 04-rtl/<module>/
+```
+
+- `implements` 里每条必须存在且属于本模块，④ 门禁还要求它们已 `approved`。
+- `files` 每个文件必须真实存在，否则 hard fail。
+- `04-rtl/` 与 `05-verification/` **不重复声明**模块身份，避免两处漂移。
+
+## 4. 步骤（含骨架时序坑）
 
 ```bash
 # 模块骨架与详设一起建（new module 会同时创建 03/04/05 三处目录）
@@ -47,11 +83,28 @@ python3 tools/sv.py new iface  --module rr_arbiter --title "端口时序"     # 
 ```
 
 `new module` 会建 `04-rtl/<module>/`，而门禁要求「`04-rtl/<module>/` 存在 ⇒ 同模块必须有 approved 的 `DES-*`」。
-因此**本阶段要一次性走完**：建骨架 → 写详设 → 人类放行；中途 `gate 03`/`gate all` 报 hard fail 属预期。
+因此**本阶段要一次性走完**：建骨架 → 写详设 → 人类放行；中途 `gate 03`/`gate all` 报 hard fail 属预期，
+不要用 waiver 掩盖，也不要提前跑 `gate all` 下结论。
 
 `new des/regmap/iface` 会自动把新 ID 追加到 `module.yaml` 的 `implements`，不要手改漏掉。
 
-必填内容与判断标准：
+## 5. front-matter（必填）
+
+```yaml
+---
+id: DES-rra-001
+title: 轮询仲裁策略
+status: draft
+owner: agent
+reviewer:                # approved 时必填（人类）
+date:                    # approved 时必填
+upstream: [ARCH-001]     # 必须指向已 approved 的 ARCH
+artifacts:
+  - 04-rtl/rr_arbiter/rr_arbiter.sv
+---
+```
+
+## 6. 正文该写什么
 
 | 小节 | 判断标准 |
 |---|---|
@@ -70,22 +123,30 @@ python3 tools/sv.py new iface  --module rr_arbiter --title "端口时序"     # 
 
 先读 `standards/coding-standard.md`，端口与信号命名必须与其后缀约定一致（`_i/_o/_q/_d/_n`）。
 
-## 自检
+专项产物按需补：`REGMAP-*`（寄存器表：地址/位域/属性/复位值/读写行为）用 `REGMAP.template.md`；
+`IFACE-*`（接口/时序：握手、采样沿、时序图）用 `IFACE.template.md`。它们与 `DES-*` 同阶段同上游，一样入 `implements`。
+
+## 7. 门禁与自检
 
 ```bash
 python3 tools/sv.py gate 03 --module rr_arbiter
 ```
 
-## 完成定义
+- hard fail：上游 `ARCH-*` 不存在/未 approved；`module.yaml` 缺失或 `id_short` 与 ID 不匹配；ID 非法或重复。
+- warn：本阶段暂无产物。
 
-1. **已通过 `grill-me` 讨论**，且达到上面的「完善」判定（无 TODO/占位，端口/参数/边界/复位逐条有确定答案）；
+## 8. 放行与完成定义
+
+1. **已通过 `grill-me` 讨论**，且达到 §1 的「完善」判定；
 2. `gate 03` 无 hard fail（含 `id_short` 一致性、`implements` 完整性）；
 3. 端口表 + 实现规划（寄存器/组合变量清单）足以让另一个人写出 RTL，无需再问；
 4. 边界条件逐条有策略（不是「视情况而定」）；
 5. 向用户请求放行；放行后写 `status: approved` + `reviewer` + `date`；
 6. `python3 tools/sv.py trace` 更新 `INDEX.md`。
 
-## 禁止
+**`04-rtl/<module>/` 只有在同模块已有 approved 详设时才允许通过 ④ 门禁。** 返工即作废原放行。
+
+## 9. 禁止
 
 - 跳过 `grill-me` 讨论直接写文档，或把 `TODO`/「实现时再定」留在正文里当交付。
 - 控制通路只写「不适用」/「无」而不给条件动作与理由，或实现规划漏列组合变量（只列端口）。

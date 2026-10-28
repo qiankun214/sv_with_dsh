@@ -7,7 +7,6 @@ reviewer: qiankun214（样例评审）
 date: 2026-10-03
 upstream: []
 artifacts:
-  - 01-requirements/REQ-001-rr-arbitration/README.md
   - 01-requirements/REQ-001-rr-arbitration/scenario-1-single-request.json
   - 01-requirements/REQ-001-rr-arbitration/scenario-1-single-request.svg
   - 01-requirements/REQ-001-rr-arbitration/scenario-2-round-robin.json
@@ -102,7 +101,7 @@ artifacts:
 | I2 | `(grant_o != 0) ⟺ (grant_valid_o == 1)` |
 | I3 | `(grant_o & ~req_i) == 0`（不授权未请求者） |
 
-以下场景只给**接口信号**（`clk` / `rst_n` / `req_i` / `grant_o` / `grant_valid_o`）的时序，不涉及内部实现；「为什么给出这个授权」属于功能行为，见「功能描述」。图源（`.json`）与渲染产物（`.svg`）都放在与本文件**同名的目录** `01-requirements/REQ-001-rr-arbitration/`，渲染方法与记法见该目录 `README.md`。记法：顶部数字为 tick 序号，**每 2 个 tick = 1 个 `clk` 周期**。
+以下场景只给**接口信号**（`clk` / `rst_n` / `req_i` / `grant_o` / `grant_valid_o`）的时序，不涉及内部实现；「为什么给出这个授权」属于功能行为，见「功能描述」。图源（`.json`）与渲染产物（`.svg`）都放在与本文件**同名的目录** `01-requirements/REQ-001-rr-arbitration/`，渲染方法与记法见 `spec-to-rtl-req` 技能「时序图（WaveDrom）」一节。记法：顶部数字为 tick 序号，**每 2 个 tick = 1 个 `clk` 周期**。
 
 #### 场景 1：单请求者持续请求（`req_i = 4'b0100`）
 

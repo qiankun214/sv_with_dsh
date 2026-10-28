@@ -5,9 +5,14 @@ description: 反向评审技能：拿 review-checklist 逐条核对已有产物�
 
 # 评审（反向把关）
 
-对某个阶段（或全流程）的既有产物做**对抗性**核对。依据是 `standards/review-checklist.md`，逐条给 `通过 / 不通过 / 不适用`，不允许「基本没问题」。
+对某个阶段（或全流程）的既有产物做**对抗性**核对。依据 `standards/review-checklist.md`，逐条给
+`通过 / 不通过 / 不适用`，不允许「基本没问题」。
 
-## 步骤
+本技能只出结论，**不改产物**：修改由对应阶段技能负责（REQ→`spec-to-rtl-req`、ARCH→`spec-to-rtl-arch`、
+DES→`spec-to-rtl-design`、RTL→`spec-to-rtl-rtl`、VP→`spec-to-rtl-verify`、CHK→`spec-to-rtl-check`），
+避免评审者顺手把证据改掉。
+
+## 1. 步骤
 
 ```bash
 python3 tools/sv.py gate all            # 先让机器把结构/追溯硬伤暴露出来
@@ -23,9 +28,10 @@ python3 tools/sv.py doctor              # 哪些检查其实没跑过（skip）
    - **数字走形**：`CHK-*` 与 `reports/` 原始报告不一致，或面积未与 ② 预算对照；
    - **掩盖 skip**：工具没装却写成「已检查」；
    - **孤立产物**：没有任何下游引用的详设、没有对应测试点的用例；
-   - **占位规范依赖**：用着 PLACEHOLDER 规范却没在产物里标注。
+   - **占位规范依赖**：用着 PLACEHOLDER 规范却没在产物里标注；
+   - **越阶段**：① 写了验收标准、② 定义了 module 内部结构、④ 引入详设里没有的端口。
 
-## 输出格式
+## 2. 输出格式
 
 ```markdown
 ## 结论：不通过 / 通过（有保留项）
@@ -44,8 +50,9 @@ python3 tools/sv.py doctor              # 哪些检查其实没跑过（skip）
 - 可带风险放行：…（理由与后续 owner）
 ```
 
-## 纪律
+## 3. 纪律
 
-- **不改产物**：评审只出结论与位置，修改由对应阶段技能负责，避免评审者顺手把证据改掉。
+- **不改产物**：评审只出结论与位置。
 - 发现上游未放行却已开工：直接判不通过，并指出该链条上的具体 ID。
 - 结论必须可追溯到 checklist 条款或门禁输出，不接受「凭经验觉得」。
+- 评审通过不等于放行：`status: approved` 只能由人类写入。
