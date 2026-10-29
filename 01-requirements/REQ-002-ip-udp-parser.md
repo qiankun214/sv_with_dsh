@@ -37,24 +37,78 @@ artifacts:
 
 ## 功能描述
 
-- F1: 输入 `s_data_i` 是 32-bit 字流。`s_sop_i` 标记 IP 包首字，`s_eop_i` 标记 IP 包末字。`s_data_i[7:0]` 是线序第一个字节，`s_data_i[15:8]` 是第二个字节，`s_data_i[23:16]` 是第三个，`s_data_i[31:24]` 是第四个。
-- F2: 解析器按 IPv4 固定头（20 字节）和 UDP 头（8 字节）解析。只接受 version=4、IHL=5、MF=0、fragment offset=0、protocol=17 的包。
+按处理结果分为两类：正常处理流程输出 info/payload；错误处理流程丢弃整包或用 error 脉冲标记。F 编号沿用初稿，不重编号；分类只调整排列顺序。F18 是两类流程共用的复位行为，列在正常流程末尾。
+
+- 正常处理流程：F1~F7、F11~F13。
+- 错误处理流程：F8~F10、F14~F17。
+- 复位与初始化：F18，两类流程共用。
+
+### 正常处理流程
+
+- F1: 输入 `s_data_i` 是 32-bit 字流，`s_sop_i` 标记 IP 包首字，`s_eop_i` 标记 IP 包末字。字内字节顺序固定：
+  - `s_data_i[7:0]` 是线序第 1 字节；
+  - `s_data_i[15:8]` 是线序第 2 字节；
+  - `s_data_i[23:16]` 是线序第 3 字节；
+  - `s_data_i[31:24]` 是线序第 4 字节。
+- F2: 解析器按 IPv4 固定头（20 字节）和 UDP 头（8 字节）解析。一个包要按正常流程输出，必须同时满足：
+  - IPv4 version = 4；
+  - IHL = 5；
+  - MF = 0，且 fragment offset = 0；
+  - protocol = 17。
 - F3: 合法包的 UDP payload 从 IP 包第 29 个字节开始（从 1 计数），长度等于 UDP length − 8。
 - F4: 每个合法包输出一拍 `info_data_o`，字段见「硬件接口」的 info 字段表。info 在 payload 之前握手。
-- F5: payload 以 32-bit 拍输出。首字节放 `m_data_o[7:0]`，第二个放 `m_data_o[15:8]`，第三个放 `m_data_o[23:16]`，第四个放 `m_data_o[31:24]`。末拍用 `m_keep_o` 标出有效字节。
-- F6: payload 长度为 0 时，仍输出一拍 `m_valid_o=1`、`m_keep_o=4'b0000`、`m_sop_o=1`、`m_eop_o=1` 的 data。
-- F7: `m_sop_o` 标 payload 首拍，`m_eop_o` 标 payload 末拍。非零 payload 的 sop 在首拍、eop 在末拍；payload 不超过 4 字节时二者同拍。
-- F8: UDP length 小于 8，或大于 IP total length − 20 时，报 UDP 长度错误。该包不输出 info 和 payload。
-- F9: IP total length 小于 28 时，报 IP 长度错误。该包不输出 info 和 payload。
-- F10: 设 sop 到 eop（含两端）一共接收了 N 个 32-bit 字，则 IP total length 必须满足 `4×(N−1) < total_len ≤ 4×N`。不满足时在 eop 时报 IP 长度错误；已输出的 info/payload 由 error 脉冲标记为无效。
+- F5: payload 以 32-bit 拍输出，字节按线序低字节在前：
+  - 第 1 字节放 `m_data_o[7:0]`；
+  - 第 2 字节放 `m_data_o[15:8]`；
+  - 第 3 字节放 `m_data_o[23:16]`；
+  - 第 4 字节放 `m_data_o[31:24]`；
+  - 末拍用 `m_keep_o` 标出有效字节。
+- F6: payload 长度为 0 时，仍输出一拍 data，信号取值固定：
+  - `m_valid_o=1`；
+  - `m_keep_o=4'b0000`；
+  - `m_sop_o=1`；
+  - `m_eop_o=1`。
+- F7: `m_sop_o` 标 payload 首拍，`m_eop_o` 标 payload 末拍：
+  - 非零 payload：sop 在首拍，eop 在末拍；
+  - payload 不超过 4 字节：sop 与 eop 同拍。
 - F11: IP total length 大于 UDP length + 8 时，UDP payload 之后的字节照常接收，但不输出。
-- F12: IPv4 头校验和与 UDP 校验和分别由 `CONTROL.IP_CSUM_EN`、`CONTROL.UDP_CSUM_EN` 控制。使能时校验失败报错；UDP checksum=0 表示发送端未计算，不报错。
+- F12: IPv4 头校验和与 UDP 校验和分别由两个寄存器位控制：
+  - `CONTROL.IP_CSUM_EN=1` 时校验 IPv4 头校验和；
+  - `CONTROL.UDP_CSUM_EN=1` 时校验 UDP 校验和；
+  - UDP checksum=0 表示发送端未计算，校验使能时也不报错。
 - F13: 两个校验使能在包首采样，整包使用同一份配置。
-- F14: 每个错误包最多产生一个 `error_irq_o` 单周期脉冲，`error_code_o` 在脉冲期间给出错误码。同一个包有多个错误时，报最先发现的错误；同一拍发现多个错误时，取错误码较小的那个。
-- F15: 头阶段发现的错误不输出 info 和 payload。包尾或帧中途发现的错误可能已有部分输出，错误脉冲标记整包无效。
-- F16: sop/eop 帧错误（包中途出现 sop，或 idle 时出现不带 sop 的字）报帧错误，并丢弃到下一个 eop。已经因其他错误进入丢弃状态的包，不再产生第二个错误脉冲。
-- F17: 错误脉冲同时更新 `STATUS.ERR_FLAG`、`STATUS.LAST_ERR_CODE` 和 `ERR_CNT`。
-- F18: 复位后解析器回到 idle，所有输出清零，配置恢复默认值，计数器清零。
+- F18: 复位后解析器回到 idle，具体行为：
+  - 所有输出清零；
+  - 配置恢复默认值；
+  - 计数器清零。
+
+### 错误处理流程
+
+- F8: UDP length 非法时，报 UDP 长度错误，该包不输出 info 和 payload：
+  - UDP length < 8；
+  - 或 UDP length > IP total length − 20。
+- F9: IP total length < 28 时，报 IP 长度错误，该包不输出 info 和 payload。
+- F10: 设 sop 到 eop（含两端）一共接收 N 个 32-bit 字，判定与处理如下：
+  - 必须满足 `4×(N−1) < total_len ≤ 4×N`；
+  - 不满足时在 eop 时报 IP 长度错误；
+  - 已输出的 info/payload 由 error 脉冲标记为无效。
+- F14: 错误上报遵循下列规则：
+  - 每个错误包最多产生一个 `error_irq_o` 单周期脉冲；
+  - `error_code_o` 在脉冲期间给出错误码；
+  - 同一个包有多个错误时，报最先发现的错误；
+  - 同一拍发现多个错误时，取错误码较小的那个。
+- F15: 错误包的输出行为分两种：
+  - 头阶段发现的错误：不输出 info 和 payload；
+  - 包尾或帧中途发现的错误：可能已有部分输出，由 error 脉冲标记整包无效。
+- F16: sop/eop 帧错误按下列规则处理：
+  - 包中途出现 sop；
+  - 或 idle 时出现不带 sop 的字；
+  - 报帧错误，并丢弃到下一个 eop；
+  - 已经因其他错误进入丢弃状态的包，不再产生第二个错误脉冲。
+- F17: 错误脉冲同时更新下列寄存器：
+  - `STATUS.ERR_FLAG` 置 1；
+  - `STATUS.LAST_ERR_CODE` 更新为本次错误码；
+  - `ERR_CNT` 加 1。
 
 ## 软硬件接口（SW–HW Interface）
 
@@ -168,7 +222,13 @@ artifacts:
 
 **配置访问。** `cfg_*` 与 `clk` 同步。`cfg_we_i=1` 时，`cfg_wdata_i` 在下一个 `clk` 上升沿写入 `cfg_addr_i` 指向的寄存器。`cfg_re_i=1` 时，`cfg_rdata_o` 在下一拍给出读数据。`cfg_we_i` 与 `cfg_re_i` 不得同拍有效。未映射地址读 0，写忽略。
 
-**复位。** `rst_n` 同步、低有效。断言期间 `s_ready_o`、`m_valid_o`、`m_sop_o`、`m_eop_o`、`info_valid_o`、`error_irq_o`、`error_code_o`、`cfg_rdata_o` 全部为 0；`CONTROL` 恢复 `0x0000_0003`，`STATUS` 和 `ERR_CNT` 清零。复位释放后解析器从 idle 开始，等待 `s_sop_i=1` 的字。
+**复位。** `rst_n` 同步、低有效。断言期间：
+
+- 下列输出全部为 0：`s_ready_o`、`m_valid_o`、`m_sop_o`、`m_eop_o`、`info_valid_o`、`error_irq_o`、`error_code_o`、`cfg_rdata_o`。
+- `CONTROL` 恢复 `0x0000_0003`。
+- `STATUS` 和 `ERR_CNT` 清零。
+
+复位释放后解析器从 idle 开始，等待 `s_sop_i=1` 的字。
 
 **时钟。** 单时钟域。所有输入在 `clk` 上升沿采样，所有输出以 `clk` 上升沿为基准。无跨时钟域处理、无异步复位、无时钟门控。
 
@@ -280,3 +340,4 @@ artifacts:
 | 日期 | 变更 | 影响的上游/下游 |
 |---|---|---|
 | 2026-10-28 | 初稿：确定 IPv4-only、32-bit 数据、低字节在前、info 先于 payload、4-bit keep、双校验可配、memory-like 配置寄存器、sop/eop 定界、error 脉冲 + 状态/计数、零 payload 空拍 | ② 系统方案与 ③ 详细设计按本接口契约展开 |
+| 2026-10-28 | 按审阅意见把 F* 分为正常处理流程与错误处理流程两类；条件枚举改为子列表；F 编号保持不变 | ②③⑤ 引用 F* 时按分类查找；接口契约不变 |
