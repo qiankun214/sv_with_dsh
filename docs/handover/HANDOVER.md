@@ -195,3 +195,4 @@ python3 tools/sv.py trace    # 0 warn
 | 2026-10-03 | 交接文档更新（slang 与「无待补检查项」） | 本文件提交 |
 | 2026-10-28 | **新增 `REQ-002` IPv4/UDP 解析初稿**（`draft`，待 ① 放行）：IPv4-only、32-bit 数据、低字节在前、sop/eop 定界、info 240 bit 每包一拍、4-bit keep、双校验可由 memory-like 寄存器开关、error 单周期脉冲 + STATUS/ERR_CNT；10 张 WaveDrom 场景图；`gate 01` 通过 | 本轮提交 |
 | 2026-10-28 | **写作约定回流**：把「功能点按正常处理流程/错误处理流程分类」与「列举关系用列表」写进 `spec-to-rtl-req` 技能、`REQ.template.md`、`spec-to-rtl` 写作通则与 `standards/review-checklist.md` | 本轮提交 |
+| 2026-10-28 | **再回流两条写作约定**：文首固定「术语与缩写」表；用到的协议标准在「背景与目标」中简介标准编号与报文结构 | 本轮提交 |

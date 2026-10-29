@@ -31,9 +31,50 @@ artifacts:
 
 # REQ-002 IPv4/UDP 报文解析
 
+## 术语与缩写
+
+| 术语/缩写 | 全称 | 含义 |
+|---|---|---|
+| IPv4 | Internet Protocol version 4 | 互联网协议第 4 版；本功能点唯一支持的 IP 版本 |
+| IP | Internet Protocol | 互联网协议 |
+| UDP | User Datagram Protocol | 用户数据报协议；本功能点解析的上层协议 |
+| RFC | Request for Comments | IETF 标准文档编号，如 RFC 791、RFC 768 |
+| header | — | 协议头部；本功能点指 IPv4 头（20 字节）和 UDP 头（8 字节） |
+| payload | — | 载荷；本功能点指 UDP 头之后的用户数据 |
+| sop | start of packet | 包首标志；输入 `s_sop_i`，输出 `m_sop_o` |
+| eop | end of packet | 包尾标志；输入 `s_eop_i`，输出 `m_eop_o` |
+| valid/ready | — | 握手信号对；valid 表示数据有效，ready 表示接收方可以接收 |
+| cut-through | — | 直通处理；头部解析完成后即输出 payload，不缓存整包 |
+| keep | — | 字节有效指示；`m_keep_o` 的 bit k 对应 `m_data_o[8k+7:8k]` |
+| info | — | 头部信息通道；每个合法包输出一拍 240-bit 头字段 |
+| IHL | Internet Header Length | IPv4 头长度，以 32-bit 字为单位 |
+| TOS | Type of Service | IPv4 服务类型字段 |
+| TTL | Time To Live | IPv4 生存时间字段 |
+| DF | Don't Fragment | IPv4 不分片标志 |
+| MF | More Fragments | IPv4 更多分片标志 |
+| checksum | — | 校验和；本功能点校验 IPv4 头校验和与 UDP 校验和 |
+| CSR | Control and Status Register | 控制与状态寄存器 |
+| IRQ | Interrupt Request | 中断请求；`error_irq_o` 为单周期错误脉冲 |
+| RO / RW / WO | Read Only / Read Write / Write Only | 寄存器访问属性 |
+| APB / AXI-Lite | Advanced Peripheral Bus / Advanced eXtensible Interface Lite | 常见寄存器总线；本功能点不实现，只提供本地 `cfg_*` 端口 |
+| Ethernet / VLAN / PPPoE | Ethernet / Virtual Local Area Network / Point-to-Point Protocol over Ethernet | 以太网相关协议；本功能点输入不含这些头 |
+| F* / I* | — | 功能点编号 / 接口不变式编号 |
+| `s_` / `m_` / `cfg_` | — | 输入流 / 输出 payload / 配置寄存器端口前缀 |
+
 ## 背景与目标
 
 网络设备收到 IPv4 报文后，需要把 UDP payload 交给下游，同时把 IP/UDP 头字段作为元数据送出。软件逐包解析会占用 CPU，也难以维持线速。本功能点提供一个 cut-through 的 IPv4/UDP 解析器：输入连续的 IPv4 包，输出 UDP payload 和头部信息，并在报文非法时通过错误脉冲上报。解析器不缓存整包，也不做转发决策。
+
+### 协议标准
+
+本功能点只涉及 IPv4 和 UDP 两个标准。
+
+| 协议 | 标准 | 本设计用到的部分 |
+|---|---|---|
+| IPv4 | RFC 791 | 20 字节固定头；version、IHL、TOS、total length、ID、flags、fragment offset、TTL、protocol、header checksum、源/目的地址 |
+| UDP | RFC 768 | 8 字节头；源/目的端口、length、checksum；IPv4 下 checksum=0 视为发送端未计算 |
+
+IPv4 的 total length 包含 IPv4 头和其后数据；UDP 的 length 包含 UDP 头和 payload。本设计只解析 IHL=5、非分片、protocol=17 的 IPv4 包，其它情况见「不做的事」。
 
 ## 功能描述
 
@@ -341,3 +382,4 @@ artifacts:
 |---|---|---|
 | 2026-10-28 | 初稿：确定 IPv4-only、32-bit 数据、低字节在前、info 先于 payload、4-bit keep、双校验可配、memory-like 配置寄存器、sop/eop 定界、error 脉冲 + 状态/计数、零 payload 空拍 | ② 系统方案与 ③ 详细设计按本接口契约展开 |
 | 2026-10-28 | 按审阅意见把 F* 分为正常处理流程与错误处理流程两类；条件枚举改为子列表；F 编号保持不变 | ②③⑤ 引用 F* 时按分类查找；接口契约不变 |
+| 2026-10-28 | 按审阅意见在文首新增「术语与缩写」表；「背景与目标」新增「协议标准」小节，简介 IPv4 RFC 791 与 UDP RFC 768 | ②③⑤ 引用术语与协议标准时直接查表 |
