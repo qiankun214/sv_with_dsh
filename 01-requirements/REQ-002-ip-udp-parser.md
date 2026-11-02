@@ -78,65 +78,132 @@ IPv4 的 total length 包含 IPv4 头和其后数据；UDP 的 length 包含 UDP
 
 ## 功能描述
 
-按处理结果分为两类：正常处理流程输出 info/payload；错误处理流程丢弃整包或用 error 脉冲标记。F 编号沿用初稿，不重编号；F18 是两类流程共用的复位行为。端到端分类见下面的场景树。
+本节按「一页看懂 → 报文解剖 → 正常路径 → 错误路径 → 边界与反压 → 场景索引 → F* 契约」组织。前六节建立端到端认知，F* 条目放在最后供下游逐条引用。
 
-### 端到端处理树
+### 1. 一页看懂
+
+输入是 32-bit 字流，每个包由 `s_sop_i` 开始、`s_eop_i` 结束。正常包先收 7 个头字（28 字节），再决定输出；错误包在检测点提前中止，丢弃到 eop。
 
 ```text
-IPv4 包
-├─ 正常处理流程（F1~F7、F11~F13）
-│  ├─ 输入与解析
-│  │  ├─ 32-bit 字流 + sop/eop 定界 → F1
-│  │  ├─ IPv4 固定头 + UDP 头解析 → F2
-│  │  ├─ payload 起点与长度 → F3
-│  │  ├─ 校验和检查（按使能位）→ F12
-│  │  └─ 包首采样配置，整包生效 → F13
-│  ├─ info 输出
-│  │  └─ 每包一拍，先于 payload → F4（场景 1、2、3）
-│  ├─ payload 输出
-│  │  ├─ 非零 payload：32-bit 拍 + keep + sop/eop → F5、F7（场景 1、2）
-│  │  ├─ 零 payload：一拍 keep=0 → F6（场景 5）
-│  │  └─ IP 总长 > UDP 长度 + 8：尾部字节丢弃 → F11
-│  └─ 反压
-│     ├─ info 未接收：payload 等待 → F4（场景 3）
-│     └─ payload 未接收：输入暂停 → F5、F7（场景 4）
-├─ 错误处理流程（F8~F10、F14~F17）
-│  ├─ 头阶段错误：不输出 info/payload
-│  │  ├─ version ≠ 4 → code 1
-│  │  ├─ IHL ≠ 5 → code 2
-│  │  ├─ MF=1 或 frag_offset≠0 → code 3
-│  │  ├─ protocol ≠ 17 → code 4（场景 6）
-│  │  ├─ total length < 28 → code 5
-│  │  ├─ UDP length 非法 → code 6
-│  │  └─ IPv4 头校验和错 → code 7
-│  ├─ 包尾错误：可能已输出，error 标记
-│  │  ├─ total length 与 sop/eop 字数不符 → code 5
-│  │  └─ UDP 校验和错 → code 8（场景 7）
-│  └─ 帧错误：可能已输出，error 标记
-│     └─ 包中途 sop / idle 无 sop → code 9（场景 10）
-└─ 公共行为（不参与包分类）
-   ├─ 配置读写：寄存器时序见「软硬件接口」（场景 9）
-   └─ 复位与初始化：输出/配置/计数复位 → F18（场景 8）
+sop ──► W0..W6 头解析 ──► 合法性检查 ──► info 握手 ──► payload 流 ──► eop ──► 下一包
+                              │
+                              └─ 检查失败 ──► error 脉冲 ──► 丢弃到 eop ──► 下一包
 ```
 
-场景与功能点的对应关系如下；各场景的端口波形见「硬件接口 → 接口协议」：
+- 正常包：一拍 info + 若干拍 payload；info 一定在 payload 之前。
+- 错误包：一个 error 脉冲 + 错误码；头阶段错误不输出，包尾错误可能已输出、用 error 标记。
+- 控制面：`cfg_*` 配置校验开关；`STATUS`/`ERR_CNT` 回读错误状态。
 
-| 场景 | 分类 | 触发条件 | 树分支 | 涉及 F* | 输出 |
+字段怎么对齐看第 2 节，逐拍行为看第 3/4 节，波形看第 6 节。
+
+### 2. 报文解剖：7 个头字 + payload
+
+因为只支持 IHL=5、不分片，IPv4 头固定 20 字节，UDP 头固定 8 字节，合起来正好 7 个 32-bit 字。W0~W6 是头，W7 起是 payload。
+
+| 拍 | 字节（线序） | 字段 | 解析时做什么 | 去向 / 检查 | 相关 F* |
 |---|---|---|---|---|---|
-| 1 正常包 | 正常 | 合法 IPv4/UDP，8 字节 payload | 正常 → 非零 payload | F1~F5、F7、F12、F13 | info + 2 拍 payload |
-| 2 背靠背 | 正常 | 两个合法包连续 | 正常 → 重复 | F1~F5、F7、F12、F13 | 两包各自 info + payload |
-| 3 info 反压 | 正常 | `info_ready_i=0` | 正常 → 反压 → info | F4、F5、F13 | info 等待；payload 暂停 |
-| 4 payload 反压 | 正常 | `m_ready_i=0` | 正常 → 反压 → payload | F5、F7、F13 | payload 保持；输入暂停 |
-| 5 零 payload | 正常 | UDP length=8 | 正常 → 零 payload | F6、F7、F13 | info + 1 拍 keep=0 |
-| 6 头阶段错误 | 错误 | protocol ≠ 17 | 错误 → 头阶段 | F2、F14~F17 | error code 4；无 info/payload |
-| 7 UDP 校验错 | 错误 | UDP checksum 错 | 错误 → 包尾 | F12、F14~F17 | info/payload + error code 8 |
-| 8 复位 | 公共 | `rst_n=0` | 公共 → 复位 | F18 | 输出全 0 |
-| 9 配置读写 | 公共 | `cfg_*` 写/读 | 公共 → 配置 | —；寄存器时序见「软硬件接口」 | 写入生效；读回 1 拍 |
-| 10 帧错误 | 错误 | 包中途 sop | 错误 → 帧错误 | F16、F14~F17 | error code 9；丢弃到 eop |
+| W0 | 0~3 | version/IHL、TOS、total length | 检查 version=4、IHL=5、total_len≥28；记录 TOS/total_len | info；不合法转错误 | F1、F2、F9 |
+| W1 | 4~7 | ID、flags、fragment offset | 检查 MF=0、frag_off=0；记录 ID/flags/frag_off | info；分片转错误 | F2 |
+| W2 | 8~11 | TTL、protocol、header checksum | 检查 protocol=17；记录 TTL/checksum | info；非 UDP 转错误 | F2、F12 |
+| W3 | 12~15 | 源 IPv4 地址 | 记录 | info | F2 |
+| W4 | 16~19 | 目的 IPv4 地址 | 记录；IP 头校验和覆盖 W0~W4，在此完成 | info；校验错转错误 | F2、F12 |
+| W5 | 20~23 | 源端口、目的端口 | 记录 | info | F2 |
+| W6 | 24~27 | UDP length、UDP checksum | 检查 8≤udp_len≤total_len−20；算 payload_len=udp_len−8 | info；不合法转错误 | F2、F3、F8、F12 |
+| W7+ | 28+ | UDP payload | 按 32-bit 拍转发；末拍 keep 标有效字节 | data 输出 | F5、F6、F7、F10、F11 |
 
-F12 是校验和使能、F13 是包首配置采样，二者对所有正常包生效；表中只在直接相关的行列出。F11 没有单独波形，正常包场景不展示尾部填充。
+每个字的字节排布如下，`s_data_i[7:0]` 是线序第一个字节：
 
-### 正常处理流程
+| 字 | `s_data_i[7:0]` | `[15:8]` | `[23:16]` | `[31:24]` |
+|---|---|---|---|---|
+| W0 | version/IHL | TOS | total_len[15:8] | total_len[7:0] |
+| W1 | ID[15:8] | ID[7:0] | {flags[2:0], frag_off[12:8]} | frag_off[7:0] |
+| W2 | TTL | protocol | header_checksum[15:8] | header_checksum[7:0] |
+| W3 | src_ip[31:24] | src_ip[23:16] | src_ip[15:8] | src_ip[7:0] |
+| W4 | dst_ip[31:24] | dst_ip[23:16] | dst_ip[15:8] | dst_ip[7:0] |
+| W5 | src_port[15:8] | src_port[7:0] | dst_port[15:8] | dst_port[7:0] |
+| W6 | udp_len[15:8] | udp_len[7:0] | udp_checksum[15:8] | udp_checksum[7:0] |
+| W7+ | payload 第 1 字节 | payload 第 2 字节 | payload 第 3 字节 | payload 第 4 字节 |
+
+低字节在前：不能把 32-bit 字直接当大端整数再移位，字段拼接要按上表的字节位置做。
+
+### 3. 正常路径：从 sop 到 eop
+
+| 阶段 | 触发 | 做什么 | 输出 / 握手 | 相关 F* |
+|---|---|---|---|---|
+| 0 idle | `rst_n=1` | 等 sop | `s_ready_o=1` | F1、F18 |
+| 1 头解析 | sop + W0~W6 | 逐字捕获字段，检查合法性、长度、校验和 | 无输出；失败转错误 | F2、F3、F12、F13 |
+| 2 info | 头检查通过 | 组装 240-bit info，等 `info_ready_i` | info 握手；payload 暂不开始 | F4 |
+| 3 payload | info 已接收 | 按 32-bit 拍输出，给 keep/sop/eop；payload 末完成 UDP 校验 | data 握手；失败 error code 8 | F5、F6、F7、F12 |
+| 4 包尾 | eop | 丢弃尾部填充；结束本包 | 可接下一包 | F10、F11 |
+| 5 错误 | 任一检查失败 | 一个 error 脉冲；丢弃到 eop | error 状态/计数 | F8、F9、F14~F17 |
+
+走一遍正常包：
+
+1. idle 等 sop。
+2. W0 检查 version、IHL、total length；W1 检查分片；W2 检查 protocol；W3/W4 收地址并完成 IP 头校验；W5/W6 收端口和 UDP 长度，算出 payload_len。
+3. 头检查通过后，先等 info 被接收；info 未接收前不输出 payload。
+4. W7 起输出 payload：首拍 `m_sop_o=1`，末拍 `m_eop_o=1`，末拍 `m_keep_o` 标有效字节；payload 为 0 时发一拍 keep=0。
+5. payload 末若 UDP 校验使能且失败，error 脉冲给 code 8；否则继续。
+6. eop 时丢弃尾部填充（如果有；F11），然后可以接下一包。
+
+正常包的最小走法见场景 1；背靠背见场景 2。
+
+### 4. 错误路径：检测点、错误码与丢弃
+
+| 检测点 | 条件 | code | info/payload | 动作 |
+|---|---|---|---|---|
+| W0 | version≠4 | 1 | 不输出 | error 脉冲，丢弃到 eop |
+| W0 | IHL≠5 | 2 | 不输出 | 同上 |
+| W1 | MF=1 或 frag_off≠0 | 3 | 不输出 | 同上 |
+| W2 | protocol≠17 | 4 | 不输出 | 同上 |
+| W0 | total_len<28 | 5 | 不输出 | 同上 |
+| W6 | UDP length<8 或 >total_len−20 | 6 | 不输出 | 同上 |
+| W4 | IP 头校验和错 | 7 | 不输出 | 同上 |
+| eop | total_len 与 sop/eop 字数不符 | 5 | 可能已输出 | error 脉冲，标记无效 |
+| payload 末 | UDP 校验和错 | 8 | 已输出 | error 脉冲，标记无效 |
+| 任意 | 包中途 sop / idle 无 sop | 9 | 可能已输出 | error 脉冲，丢弃到 eop |
+
+错误上报规则：
+
+- 每个错误包最多一个 `error_irq_o` 单周期脉冲；`error_code_o` 只在脉冲期间有效。
+- 同一个包有多个错误时，报最先发现的；同一拍发现多个，取码值较小的。
+- 头阶段错误不输出 info/payload；包尾或帧中途错误可能已有输出，由 error 脉冲标记整包无效。
+- 已经进入丢弃状态的包，不再产生第二个错误脉冲；丢弃到下一个 eop。
+- 错误脉冲同时更新 `STATUS.ERR_FLAG`、`STATUS.LAST_ERR_CODE`，`ERR_CNT` 加 1。
+
+头阶段错误见场景 6，UDP 校验错见场景 7，帧错误见场景 10。
+
+### 5. 边界与反压
+
+| 情况 | 行为 | 相关 F* | 场景 |
+|---|---|---|---|
+| 零 payload | info + 一拍 `m_keep_o=0` 的 data | F6、F7 | 5 |
+| info 反压 | info 保持；payload 不开始；输入暂停 | F4 | 3 |
+| payload 反压 | data 保持；输入暂停 | F5、F7 | 4 |
+| 尾部填充 | UDP 之后的字节接收但不输出 | F11 | — |
+| 背靠背 | 上一包 eop 后下一拍可 sop | F1、F7 | 2 |
+| 配置读写 | 包首采样；cfg 访问与数据通路并行 | F13 | 9 |
+
+### 6. 场景索引
+
+| 场景 | 看什么 | 对应阶段 | 关键 F* |
+|---|---|---|---|
+| 1 正常包 | 7 个头字 → info → 2 拍 payload | 头解析 / info / payload | F1~F5、F7、F12、F13 |
+| 2 背靠背 | 包间无空拍；info 按包顺序 | eop / 下一包 | F1、F7、F13 |
+| 3 info 反压 | info 不接收时 payload 不开始 | info | F4、F5、F13 |
+| 4 payload 反压 | data 保持、输入暂停 | payload | F5、F7、F13 |
+| 5 零 payload | info + 空 data 拍 | payload | F6、F7、F13 |
+| 6 头阶段错误 | 检测点、error 脉冲、无输出 | 错误 | F2、F14~F17 |
+| 7 UDP 校验错 | 包尾 error 标记已输出 | 包尾 | F12、F14~F17 |
+| 8 复位 | 输出 / 配置 / 计数清零 | idle | F18 |
+| 9 配置读写 | 写生效、读 1 拍延迟 | 控制面 | —（软硬件接口） |
+| 10 帧错误 | 包中途 sop → code 9 → 丢弃 | 帧 | F16、F14~F17 |
+
+波形在「硬件接口 → 接口协议」，按场景号查找。
+
+### 7. F* 契约条目
+
+#### 正常处理流程
 
 - F1: 输入 `s_data_i` 是 32-bit 字流，`s_sop_i` 标记 IP 包首字，`s_eop_i` 标记 IP 包末字。字内字节顺序固定：
   - `s_data_i[7:0]` 是线序第 1 字节；
@@ -175,7 +242,7 @@ F12 是校验和使能、F13 是包首配置采样，二者对所有正常包生
   - 配置恢复默认值；
   - 计数器清零。
 
-### 错误处理流程
+#### 错误处理流程
 
 - F8: UDP length 非法时，报 UDP 长度错误，该包不输出 info 和 payload：
   - UDP length < 8；
@@ -344,6 +411,8 @@ F12 是校验和使能、F13 是包首配置采样，二者对所有正常包生
 
 以下场景只画接口信号，不画内部状态。每个 `clk` 周期等于 2 个 tick。
 
+**读图约定**：`H0~H6` 是 7 个头字，`P0/P1` 是 payload 字，`INFO` 是 info 拍，`ERR` 是 error 脉冲。场景与阶段、F* 的对应关系见第 6 节场景索引。
+
 #### 场景 1：单个正常包（8 字节 payload）
 
 ![场景 1：单个正常包](REQ-002-ip-udp-parser/scenario-1-normal-packet.svg)
@@ -396,7 +465,7 @@ F12 是校验和使能、F13 是包首配置采样，二者对所有正常包生
 
 ![场景 9：配置写与读](REQ-002-ip-udp-parser/scenario-9-config-access.svg)
 
-**文字说明**：`cfg_we_i=1` 写 `CONTROL=0x1`，关闭 IP 头校验、打开 UDP 校验。写在下个 `clk` 沿生效。随后 `cfg_re_i=1` 读同一地址，`cfg_rdata_o` 在下一拍返回 `0x1`。配置只影响之后开始的包。
+**文字说明**：`cfg_we_i=1` 写 `CONTROL=0x1`，打开 IP 头校验、关闭 UDP 校验。写在下个 `clk` 沿生效。随后 `cfg_re_i=1` 读同一地址，`cfg_rdata_o` 在下一拍返回 `0x1`。配置只影响之后开始的包。
 
 #### 场景 10：帧错误（包中途 sop）
 
@@ -436,3 +505,4 @@ F12 是校验和使能、F13 是包首配置采样，二者对所有正常包生
 | 2026-10-28 | 按审阅意见把 F* 分为正常处理流程与错误处理流程两类；条件枚举改为子列表；F 编号保持不变 | ②③⑤ 引用 F* 时按分类查找；接口契约不变 |
 | 2026-10-28 | 按审阅意见在文首新增「术语与缩写」表；「背景与目标」新增「协议标准」小节，简介 IPv4 RFC 791 与 UDP RFC 768 | ②③⑤ 引用术语与协议标准时直接查表 |
 | 2026-10-28 | 按审阅意见在功能描述开头新增端到端处理树和「场景 ↔ F*」对照表，把场景分类与 F* 处理方式串起来；详细波形仍留在接口协议 | ②③⑤ 从树和对照表定位场景与 F* |
+| 2026-10-28 | 按「端到端认知」重写功能描述：一页流程图 → 7 字报文解剖 → 正常路径阶段表 → 错误检测点表 → 边界/反压 → 场景索引 → F* 契约；分类树由更具体的流水线视图取代，F* 移到契约节 | ②③⑤ 先读前六节建立端到端认知，再按 F* 引用契约 |
