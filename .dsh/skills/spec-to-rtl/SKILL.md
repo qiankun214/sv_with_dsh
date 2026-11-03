@@ -203,6 +203,8 @@ python3 tools/sv.py trace            # 更新 INDEX.md（必须入库）
 - soft warn（lint/覆盖率/综合）：记录进 ⑥ 的 `CHK-*`，是否修由用户决定。
 - skip（工具缺失）：在交付摘要里逐条列出，不要假装跑过。
 
+**Git**：每次完成一个可交付变更（阶段产物、修复、文档/技能调整）后，在本地 `git commit`；**不要 `git push`**，push 只在用户明确要求时执行。提交前跑对应 gate 与 `trace`，提交信息写清改了什么。
+
 结束时交付摘要必须包含：
 
 1. 本次新增/修改的产物清单（含 ID）；
@@ -239,6 +241,7 @@ tools/sv.py        唯一入口（门禁/追溯/建产物/自检）
 - 跳过任何阶段；跳过就是断链，门禁也会拦。
 - 伪造放行（自己写 `reviewer` / `date`）。
 - 改 `tools/sv.py`、`06-checks/cfg/*`、`standards/review-checklist.md` 来让门禁通过。
+- 未经用户明确要求执行 `git push`；每次完成变更后应本地提交。
 - 在 `06-checks/reports/` 下提交波形、网表、`obj_dir` 等大产物（`.gitignore` 已覆盖）。
 - 创建 Makefile、CI 工作流或第二套并行脚本入口。
 - 把 `examples/` 之类的旁路示例目录当作流程演示；样例走真实阶段目录。
