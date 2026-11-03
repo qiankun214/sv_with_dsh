@@ -230,12 +230,6 @@ python3 -m venv .tools/wdvenv && .tools/wdvenv/bin/pip install wavedrom   # 一�
 | 工艺 | sky130 | |
 | 其它 | | |
 
-## 不做的事（non-goals）
-
-<!-- 明确划出边界，防止下游自由发挥。至少覆盖：软件接口、时钟域、背压/流、配置能力。 -->
-
--
-
 <!-- ⚠️ 本文件到此为止只描述 IPO：输入（端口/参数/协议怎么给）、处理（F* 行为）、输出（端口/协议怎么读）。
      不要再写「验收标准 / AC / 测试判据」——那是 ⑤ 验证阶段的活：由它从 F*、接口不变式与时序场景
      扇出为验收标准与 TC-* 测试点（见 spec-to-rtl-verify 技能与 VP.template.md）。 -->

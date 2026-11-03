@@ -74,7 +74,9 @@ artifacts:
 | IPv4 | RFC 791 | 20 字节固定头；version、IHL、TOS、total length、ID、flags、fragment offset、TTL、protocol、header checksum、源/目的地址 |
 | UDP | RFC 768 | 8 字节头；源/目的端口、length、checksum；IPv4 下 checksum=0 视为发送端未计算 |
 
-IPv4 的 total length 包含 IPv4 头和其后数据；UDP 的 length 包含 UDP 头和 payload。本设计只解析 IHL=5、非分片、protocol=17 的 IPv4 包，其它情况见「不做的事」。
+IPv4 的 total length 包含 IPv4 头和其后数据；UDP 的 length 包含 UDP 头和 payload。本设计只解析 IHL=5、非分片、protocol=17 的 IPv4 包，其它情况不在本功能点范围内。
+
+本 spec 只定义以上 IPv4/UDP 解析行为；未写到的行为视为不做。
 
 ## 功能描述
 
@@ -523,19 +525,6 @@ flowchart TD
 | 包长 | 支持 IPv4 total length 28~65535 字节的 UDP 包；更短的包按错误处理。不缓存整包，包长不增加存储开销 | 本功能点 |
 | 其它 | RTL 必须能通过 Yosys + `sky130_fd_sc_hd` 综合；不使用不可综合结构 | 流程约定 |
 
-## 不做的事（non-goals）
-
-- 不解析 IPv6、ARP、ICMP、TCP；protocol ≠ 17 的包报错丢弃。
-- 不支持 IPv4 options；IHL ≠ 5 的包报错丢弃。
-- 不支持分片重组；MF=1 或 fragment offset ≠ 0 的包报错丢弃。
-- 不缓存整包，不做 store-and-forward；UDP 校验和错误在包尾用 error 脉冲标记，不撤回已输出的字节。
-- 不做跨包流水；同一时刻只有一个包在途，包 N 的 payload 结束后才开始包 N+1 的 info。
-- 不做 UDP 端口过滤、五元组匹配、转发决策或会话表。
-- 不做 Ethernet、VLAN、PPPoE 解析；输入必须从 IPv4 头第一个字节开始。
-- 不实现 APB/AXI-Lite 从接口；`cfg_*` 只是本地 memory-like 寄存器端口，桥接和地址映射由系统集成完成。
-- 不做跨时钟域、异步复位、时钟门控或低功耗状态机。
-- 不做按错误码分类的计数器；只保留总错误包数、最近错误码和粘滞错误标志。
-
 ## 变更历史
 
 | 日期 | 变更 | 影响的上游/下游 |
@@ -546,3 +535,4 @@ flowchart TD
 | 2026-10-28 | 按审阅意见在功能描述开头新增端到端处理树和「场景 ↔ F*」对照表，把场景分类与 F* 处理方式串起来；详细波形仍留在接口协议 | ②③⑤ 从树和对照表定位场景与 F* |
 | 2026-10-28 | 按「端到端认知」重写功能描述：一页流程图 → 7 字报文解剖 → 正常路径阶段表 → 错误检测点表 → 边界/反压 → 场景索引 → F* 契约；分类树由更具体的流水线视图取代，F* 移到契约节 | ②③⑤ 先读前六节建立端到端认知，再按 F* 引用契约 |
 | 2026-10-28 | 明确错误优先级：先发现先报、同拍取小、一包只报一次；新增错误优先级决策树，说明 code 9 的条件优先级、code 5 的两个检测点、code 7 早于 code 6 | ②③⑤ 用同一棵树判定多错并存时上报哪个码 |
+| 2026-10-28 | 按审阅意见删除「不做的事（non-goals）」小节；范围由正文写到的行为界定，未写到的视为不做；协议标准段补一句范围声明 | ②③⑤ 不再依赖 non-goals 清单，按正文与 F* 判断范围 |
