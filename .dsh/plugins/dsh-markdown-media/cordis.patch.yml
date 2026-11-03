@@ -1,0 +1,11 @@
+# dsh-markdown-media 的 profile 层：插入一行 Loader row。
+#
+# 本包以 bundle 方式安装时（dsh plugin --profile <name> add <spec>），profile 会把
+# package.json 里 dsh.bundle 声明的这个文件当作一层 patch 应用；client-modules
+# 扫描到这一行后，会把本包的浏览器半边放进页面 boot graph。
+#
+# 行标识全树唯一：不要再在别处插入同名 row，也不要在 profile 的 patch 里再插一行
+# （重复 row id 会让 dsh 启动直接失败）。
+- insert:
+    - id: markdown-media
+      name: dsh-markdown-media

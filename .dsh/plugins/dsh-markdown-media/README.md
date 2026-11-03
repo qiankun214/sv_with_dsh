@@ -2,7 +2,7 @@
 
 本仓的 dsh Web GUI 扩展：让 Markdown 里的图片和 Mermaid 图正常显示，并且点一下就能放大查看。
 
-它是一个 dsh 客户端插件包。`package.json` 声明 `dsh.client`，浏览器半边由 `@deepseek-ai/dsh-client-modules` 加载；宿主半边只有空的 `apply`，作用是让组合能挂一行 Loader row。
+它是一个 dsh 客户端插件包，同时声明了 `dsh.client` 和 `dsh.bundle`。`dsh.client` 让浏览器半边被 `@deepseek-ai/dsh-client-modules` 加载；`dsh.bundle` 让 `dsh plugin` 安装它时自动把它加进 profile 的层列表，并应用自带的一层 patch（就是那行 Loader row）。宿主半边只有空的 `apply`，作用是让组合里能出现这一行。
 
 ## 功能
 
@@ -43,25 +43,49 @@ dsh 自带的 Markdown 组件不认 mermaid，```` ```mermaid ```` 只会显示�
 
 识别范围只有 Markdown 图片：在 Markdown 容器内，或带原生组件那组专有属性。头像、附件缩略图（有自己的查看器）、工具结果图库都不受影响。
 
-## 安装与挂载
+## 安装
 
-包放在仓里，部署侧的 profile 用一行 Loader row 挂载。
+另一台机器只要 clone 本仓，执行**一条 dsh 官方命令**即可，不需要跑本仓的脚本：
 
-```text
-.dsh/plugins/dsh-markdown-media/            本包
-~/.dsh/profiles/web/cordis.patch.yml        挂载行
+```sh
+dsh plugin --profile web add /path/to/sv/.dsh/plugins/dsh-markdown-media
 ```
 
-挂载行：
+这条命令做三件事：在 profile 里装好依赖；把声明了 `dsh.bundle` 的包加进 profile 的层列表；下次启动时应用包内 `cordis.patch.yml` 的 Loader row。然后重启 `dsh web`、刷新页面。
 
-```yaml
-- id: markdown-media
-  name: dsh-markdown-media
+升级、卸载同样走官方命令：
+
+```sh
+dsh plugin --profile web update dsh-markdown-media   # 依赖来自 npm 时
+dsh plugin --profile web remove dsh-markdown-media
 ```
 
-profile 用相对链接引用本仓（`link:../../../sv/.dsh/plugins/dsh-markdown-media`）。`patchReload: live` 让改动 patch 文件后立即挂载，不用重启服务。浏览器要刷新一次，因为 boot graph 在 index 响应里注入。
+发布到 npm 之后，可以直接按包名安装：`dsh plugin --profile web add dsh-markdown-media`。
 
-移除：删掉挂载行，在 profile 目录执行 `pnpm install`。
+### 为什么不是「零操作」
+
+dsh 只从 profile 组合里加载插件：`~/.dsh/profiles/<name>/cordis.patch.yml`、profile 的 `dsh.profile.bundles`，或 `--patch` 覆盖层。工作区里没有插件发现机制（`.dsh/skills/` 那种自动扫描只针对技能，不针对插件）。所以「克隆完什么都不做就生效」在 dsh 0.1.5-rc.1 上做不到，最少需要上面那一条命令，以及一次 `dsh web` 重启。
+
+### 本机当前的挂载方式
+
+本机（`~/` 下已有部署）是手工挂载的：`~/.dsh/profiles/web/cordis.patch.yml` 里有一行 `markdown-media`，依赖用 `link:` 指向本仓。这种挂法和 bundle 方式**不能同时存在**：同一行 id 出现两次会让 dsh 启动直接失败。
+
+要换成本仓推荐的 bundle 方式：
+
+1. 删掉 `~/.dsh/profiles/web/cordis.patch.yml` 里的 `markdown-media` 行（live reload 会让当前进程立即卸载插件）；
+2. 执行上面那条 `dsh plugin --profile web add …`；
+3. 重启 `dsh web`。
+
+## 发布到 npm
+
+包名 `dsh-markdown-media` 在 npm 上目前未被占用。发布前确认三件事：登录（`npm login`）、版本号、以及本仓自己的许可证（本包用 MIT，见 `LICENSE`）。
+
+```sh
+cd .dsh/plugins/dsh-markdown-media
+npm publish
+```
+
+`files` 只放行 `lib/`、`cordis.patch.yml`、`THIRD-PARTY-NOTICES.md`，源码、测试、构建脚本不进包。产物里的第三方组件（mermaid 及 57 个依赖）的许可证全文由 `build.mjs` 生成到 `THIRD-PARTY-NOTICES.md`，随包发布。
 
 ## 重建
 
@@ -70,12 +94,16 @@ profile 用相对链接引用本仓（`link:../../../sv/.dsh/plugins/dsh-markdow
 ```sh
 cd .dsh/plugins/dsh-markdown-media
 pnpm install            # esbuild、mermaid、jsdom，来自 devDependencies
-node build.mjs          # 写 lib/client.js
+node build.mjs          # 写 lib/client.js 和 THIRD-PARTY-NOTICES.md
 ```
 
 产物是一个 classic script，通过 `window.__ModuleLoader__.load` 注册插件工厂。React 与 `@deepseek-ai/dsh-client-ui-primitives` 不打包，由加载器的冻结模块表提供。mermaid 打进产物，约 3.4 MB，因此离线也能画图。
 
 构建产物要入库：profile 挂载本包时，`lib/client.js` 缺失会让客户端组合失败。`node_modules/` 不入库，见本目录的 `.gitignore`。
+
+## 兼容性
+
+已在 dsh `0.1.5-rc.1`（客户端包 `0.1.5-rc.2`）上验证。用到的都是客户端内部 API：`MarkdownText` 的 `pathImages` 与 labels、`documentPreviews.register`、`slots.register` / `slots.inject`、`locale.register` / `locale.bind`，以及原生 Markdown 图片的属性签名。dsh 换大版本后这些可能变，届时可能是挂载失败，也可能只是不再生效。
 
 ## 为什么做在 DOM 上
 

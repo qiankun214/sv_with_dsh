@@ -1,8 +1,24 @@
 {
   "name": "dsh-markdown-media",
   "version": "0.1.0",
-  "private": true,
-  "description": "Web GUI extension: Mermaid fences render as diagrams on every Markdown surface, and the right-Sidebar Markdown preview resolves images (absolute and document-relative) through the Host's /api/file route.",
+  "description": "dsh Web GUI 扩展：Markdown 里的图片按当前文档解析并可直接显示，Mermaid 围栏画成图，图片与图表点击放大。",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-bundle",
+    "mermaid",
+    "markdown"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qiankun214/sv_with_dsh.git",
+    "directory": ".dsh/plugins/dsh-markdown-media"
+  },
+  "bugs": {
+    "url": "https://github.com/qiankun214/sv_with_dsh/issues"
+  },
+  "homepage": "https://github.com/qiankun214/sv_with_dsh/tree/main/.dsh/plugins/dsh-markdown-media",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -10,7 +26,18 @@
     "./client": "./lib/client.js",
     "./package.json": "./package.json"
   },
+  "files": [
+    "lib/",
+    "cordis.patch.yml",
+    "THIRD-PARTY-NOTICES.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dsh": {
+    "bundle": {
+      "patch": "cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "inject": [
