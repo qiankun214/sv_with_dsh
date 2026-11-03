@@ -1,0 +1,2 @@
+# 重建用的依赖（pnpm install 装回），不入库
+node_modules/

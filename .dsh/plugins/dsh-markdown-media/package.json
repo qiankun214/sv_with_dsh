@@ -1,0 +1,30 @@
+{
+  "name": "dsh-markdown-media",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Web GUI extension: Mermaid fences render as diagrams on every Markdown surface, and the right-Sidebar Markdown preview resolves images (absolute and document-relative) through the Host's /api/file route.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-resources",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview"
+      ]
+    }
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "jsdom": "^27.0.0",
+    "mermaid": "^11.17.2"
+  }
+}
