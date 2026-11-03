@@ -90,8 +90,8 @@ IPv4 的 total length 包含 IPv4 头和其后数据；UDP 的 length 包含 UDP
 flowchart LR
   SOP["sop"] --> HDR["W0~W6 头解析"]
   HDR --> CHK{"合法性检查"}
-  CHK -- "通过" --> INFO["info 握手"]
-  INFO --> PAY["payload 流"]
+  CHK -- "通过" --> FIRST["首拍 info+payload"]
+  FIRST --> PAY["后续 payload 拍"]
   PAY --> EOP["eop / 尾部填充"]
   EOP --> NXT["下一包"]
   CHK -- "失败" --> ERR["error 脉冲"]
@@ -99,7 +99,7 @@ flowchart LR
   DISC --> NXT
 ```
 
-- 正常包：一拍 info + 若干拍 payload；info 一定在 payload 之前。
+- 正常包：首拍同时给出 info 与 payload，之后若干拍 payload；info 只伴随首拍。
 - 错误包：一个 error 脉冲 + 错误码；头阶段错误不输出，包尾错误可能已输出、用 error 标记。
 - 控制面：`cfg_*` 配置校验开关；`STATUS`/`ERR_CNT` 回读错误状态。
 
@@ -141,8 +141,8 @@ flowchart LR
 |---|---|---|---|---|
 | 0 idle | `rst_n=1` | 等 sop | `s_ready_o=1` | F1、F18 |
 | 1 头解析 | sop + W0~W6 | 逐字捕获字段，检查合法性、长度、校验和 | 无输出；失败转错误 | F2、F3、F12、F13 |
-| 2 info | 头检查通过 | 组装 240-bit info，等 `info_ready_i` | info 握手；payload 暂不开始 | F4 |
-| 3 payload | info 已接收 | 按 32-bit 拍输出，给 keep/sop/eop；payload 末完成 UDP 校验 | data 握手；失败 error code 8 | F5、F6、F7、F12 |
+| 2 首拍 info+payload | 头检查通过且首个 payload 字可用 | 同时给出 240-bit info 与首个 payload 拍 | 首拍等 `info_ready_i` 与 `m_ready_i`；两路都到才前进 | F4、F5 |
+| 3 后续 payload | 首拍已接收 | 继续输出 32-bit 拍，给 keep/sop/eop；payload 末完成 UDP 校验 | 只看 `m_ready_i`；失败 error code 8 | F5、F6、F7、F12 |
 | 4 包尾 | eop | 丢弃尾部填充；结束本包 | 可接下一包 | F10、F11 |
 | 5 错误 | 任一检查失败 | 一个 error 脉冲；丢弃到 eop | error 状态/计数 | F8、F9、F14~F17 |
 
@@ -150,8 +150,8 @@ flowchart LR
 
 1. idle 等 sop。
 2. W0 检查 version、IHL、total length；W1 检查分片；W2 检查 protocol；W3/W4 收地址并完成 IP 头校验；W5/W6 收端口和 UDP 长度，算出 payload_len。
-3. 头检查通过后，先等 info 被接收；info 未接收前不输出 payload。
-4. W7 起输出 payload：首拍 `m_sop_o=1`，末拍 `m_eop_o=1`，末拍 `m_keep_o` 标有效字节；payload 为 0 时发一拍 keep=0。
+3. 头检查通过后，等首个 payload 字；首拍同时给出 info 和 payload，等 `info_ready_i` 与 `m_ready_i` 都为 1 才前进。
+4. 首拍 `m_sop_o=1`，`info_valid_o=1` 与它同拍；首拍接收后 `info_valid_o=0`，后续 payload 拍只看 `m_ready_i`；末拍 `m_eop_o=1`，`m_keep_o` 标有效字节；payload 为 0 时首拍就是 keep=0 的空拍。
 5. payload 末若 UDP 校验使能且失败，error 脉冲给 code 8；否则继续。
 6. eop 时丢弃尾部填充（如果有；F11），然后可以接下一包。
 
@@ -218,24 +218,24 @@ flowchart TD
 
 | 情况 | 行为 | 相关 F* | 场景 |
 |---|---|---|---|
-| 零 payload | info + 一拍 `m_keep_o=0` 的 data | F6、F7 | 5 |
-| info 反压 | info 保持；payload 不开始；输入暂停 | F4 | 3 |
-| payload 反压 | data 保持；输入暂停 | F5、F7 | 4 |
+| 零 payload | info 与一拍 `m_keep_o=0` 的 data 同拍；两路 ready 都到才接收 | F6、F7 | 5 |
+| info 反压 | 首拍 info+payload 保持；输入暂停；两路 ready 都到才前进 | F4、F5 | 3 |
+| payload 反压 | 首拍 info+payload 保持；输入暂停；`m_ready_i` 恢复才前进 | F4、F5、F7 | 4 |
 | 尾部填充 | UDP 之后的字节接收但不输出 | F11 | — |
-| 背靠背 | 上一包 eop 后下一拍可 sop | F1、F7 | 2 |
+| 背靠背 | 上一包 eop 后下一拍可 sop；每包 info 与首拍同拍 | F1、F4、F7 | 2 |
 | 配置读写 | 包首采样；cfg 访问与数据通路并行 | F13 | 9 |
 
 ### 6. 场景索引
 
 | 场景 | 看什么 | 对应阶段 | 关键 F* |
 |---|---|---|---|
-| 1 正常包 | 7 个头字 → info → 2 拍 payload | 头解析 / info / payload | F1~F5、F7、F12、F13 |
-| 2 背靠背 | 包间无空拍；info 按包顺序 | eop / 下一包 | F1、F7、F13 |
-| 3 info 反压 | info 不接收时 payload 不开始 | info | F4、F5、F13 |
-| 4 payload 反压 | data 保持、输入暂停 | payload | F5、F7、F13 |
-| 5 零 payload | info + 空 data 拍 | payload | F6、F7、F13 |
+| 1 正常包 | 7 个头字 → 首拍 info+payload → 2 拍 payload | 头解析 / 首拍 / 后续 payload | F1~F5、F7、F12、F13 |
+| 2 背靠背 | 包间无空拍；每包 info 与首拍同拍 | eop / 下一包 | F1、F4、F7、F13 |
+| 3 info 反压 | `info_ready_i=0` 时首拍等待 | 首拍 | F4、F5、F13 |
+| 4 payload 反压 | `m_ready_i=0` 时首拍 info+data 保持 | 首拍 | F4、F5、F7、F13 |
+| 5 零 payload | info 与空 data 拍同拍 | 首拍 | F6、F7、F13 |
 | 6 头阶段错误 | 检测点、error 脉冲、无输出 | 错误 | F2、F14~F17 |
-| 7 UDP 校验错 | 包尾 error 标记已输出 | 包尾 | F12、F14~F17 |
+| 7 UDP 校验错 | 首拍 info+payload；包尾 error 标记已输出 | 首拍 / payload 末 | F12、F14~F17 |
 | 8 复位 | 输出 / 配置 / 计数清零 | idle | F18 |
 | 9 配置读写 | 写生效、读 1 拍延迟 | 控制面 | —（软硬件接口） |
 | 10 帧错误 | 包中途 sop → code 9 → 丢弃 | 帧 | F16、F14~F17 |
@@ -257,14 +257,14 @@ flowchart TD
   - MF = 0，且 fragment offset = 0；
   - protocol = 17。
 - F3: 合法包的 UDP payload 从 IP 包第 29 个字节开始（从 1 计数），长度等于 UDP length − 8。
-- F4: 每个合法包输出一拍 `info_data_o`，字段见「硬件接口」的 info 字段表。info 在 payload 之前握手。
+- F4: 每个合法包输出一拍 `info_data_o`，字段见「硬件接口」的 info 字段表。info 与 payload 首拍同拍 valid；首拍要同时等 `info_ready_i` 与 `m_ready_i`，两路都为 1 才接收；首拍接收后 `info_valid_o=0`。
 - F5: payload 以 32-bit 拍输出，字节按线序低字节在前：
   - 第 1 字节放 `m_data_o[7:0]`；
   - 第 2 字节放 `m_data_o[15:8]`；
   - 第 3 字节放 `m_data_o[23:16]`；
   - 第 4 字节放 `m_data_o[31:24]`；
   - 末拍用 `m_keep_o` 标出有效字节。
-- F6: payload 长度为 0 时，仍输出一拍 data，信号取值固定：
+- F6: payload 长度为 0 时，仍输出一拍 data，info 与这一拍同拍，信号取值固定：
   - `m_valid_o=1`；
   - `m_keep_o=4'b0000`；
   - `m_sop_o=1`；
@@ -399,11 +399,11 @@ flowchart TD
 
 **输入侧。** `s_valid_i` 与 `s_ready_o` 完成握手，`s_valid_i=1 && s_ready_o=1` 的 `clk` 上升沿接收一个 32-bit 字。`s_valid_i` 一旦拉高，`s_data_i`、`s_sop_i`、`s_eop_i` 必须保持到该字被接收。输入包按 32-bit 字对齐，`s_sop_i` 只在包首字为 1，`s_eop_i` 只在包末字为 1。包可以背靠背，不要求包间空拍。输入从 IPv4 头第一个字节开始，不含 Ethernet、VLAN 或 PPP 头。
 
-**输出侧。** `m_valid_o` 与 `m_ready_i` 完成 payload 握手。`m_data_o`、`m_keep_o`、`m_sop_o`、`m_eop_o` 在 `m_valid_o=1 && m_ready_i=0` 期间保持不变。`m_keep_o` 只允许 `4'b0000`、`4'b0001`、`4'b0011`、`4'b0111`、`4'b1111` 五种值。非零 payload 的每个 data 拍 `m_keep_o` 非 0；零 payload 的唯一 data 拍 `m_keep_o=4'b0000`。
+**输出侧。** `m_valid_o` 与 `m_ready_i` 完成 payload 握手。首拍未被接收（`info_ready_i=0` 或 `m_ready_i=0`）期间，`m_data_o`、`m_keep_o`、`m_sop_o`、`m_eop_o` 保持不变；后续 data 拍在 `m_ready_i=0` 期间保持不变。`m_keep_o` 只允许 `4'b0000`、`4'b0001`、`4'b0011`、`4'b0111`、`4'b1111` 五种值。非零 payload 的每个 data 拍 `m_keep_o` 非 0；零 payload 的唯一 data 拍 `m_keep_o=4'b0000`。
 
-**握手与流控。** 输入、info、payload 三组通道各自使用 valid/ready 握手。valid 一旦拉高，必须保持到 ready；valid 与 ready 同拍为一次传输。info 未被接收时，payload 不开始；payload 未被接收时，输入暂停。error 没有 ready，不反压任何通道，接收方必须自己锁存这个单周期脉冲。
+**握手与流控。** 输入和 payload 使用 valid/ready 握手；info 是首拍的伴随通道，不单独发起传输。首拍要同时满足 `info_ready_i=1` 和 `m_ready_i=1`；任一路为 0 时，info、payload 首拍和输入都保持。首拍被接收后 `info_valid_o=0`，后续 payload 只看 `m_ready_i`。`m_valid_o` 未被接收时输入暂停。error 没有 ready，不反压任何通道，接收方必须自己锁存这个单周期脉冲。
 
-**info 通道。** `info_valid_o` 与 `info_ready_i` 完成 info 握手，每个合法包一拍。info 必须在 payload 首拍之前被接收；info 未被接收时，`m_valid_o` 保持 0，解析器也不接收新的 payload 字。info 被接收后，info 通道不再反压 payload，payload 只受 `m_ready_i` 控制。info 与 payload 的包顺序一致：包 N 的 info 在包 N 的 payload 之前，包 N+1 的 info 在包 N 的 payload 之后。
+**info 通道。** `info_valid_o` 与首个 payload 拍同拍（含零 payload 的空 data 拍）；`info_data_o` 只在这一拍有效。首拍只有在 `info_ready_i=1` 且 `m_ready_i=1` 时被接收；否则 `info_valid_o`、`m_valid_o`、`m_sop_o` 和首拍数据保持，`s_ready_o=0`。首拍接收后 `info_valid_o=0`，info 不再参与后续 payload 反压。每个合法包恰好一拍 info，包顺序与 payload 一致：包 N 的 info 在包 N 的首拍，包 N+1 的 info 在包 N 的 payload 之后。
 
 **error 输出。** `error_irq_o` 是单周期脉冲，没有 ready，可以在任意时刻拉高，包括 payload 正在传输或反压期间。`error_code_o` 在 `error_irq_o=1` 时给出错误码，其余时刻为 0。错误码定义：
 
@@ -440,49 +440,51 @@ flowchart TD
 | I1 | `rst_n=0` 时，所有 valid、sop、eop、error_irq 为 0，`cfg_rdata_o=0` |
 | I2 | `s_valid_i=1 && s_ready_o=0` 期间，`s_data_i`、`s_sop_i`、`s_eop_i` 保持不变 |
 | I3 | `m_valid_o=1 && m_ready_i=0` 期间，`m_data_o`、`m_keep_o`、`m_sop_o`、`m_eop_o` 保持不变 |
-| I4 | `info_valid_o=1 && info_ready_i=0` 期间，`info_data_o` 保持不变 |
+| I4 | `info_valid_o=1` 当且仅当 `m_valid_o=1` 且 `m_sop_o=1`；首拍被接收前 `info_data_o` 保持不变 |
 | I5 | `m_sop_o` 和 `m_eop_o` 只在 `m_valid_o=1` 时为 1 |
 | I6 | 未出错的包，data 序列恰好有一个 sop 和一个 eop，且 sop 不晚于 eop |
 | I7 | `m_keep_o` 只取 `0`、`1`、`3`、`7`、`15`；非零 payload 的 data 拍 keep 非 0，零 payload 的唯一 data 拍 keep=0 |
-| I8 | info 未被接收时 `m_valid_o=0`；每个合法包的 info 在首个 data 拍之前被接收 |
+| I8 | 首拍在 `info_ready_i=1` 且 `m_ready_i=1` 时被接收；首拍接收后 `info_valid_o=0`，后续 data 拍不再看 `info_ready_i` |
 | I9 | `error_irq_o` 是单周期脉冲；`error_irq_o=1` 时 `error_code_o` 为 1~9，其余时刻为 0 |
 | I10 | `cfg_rdata_o` 在 `cfg_re_i=1` 的下一拍有效；`cfg_we_i` 与 `cfg_re_i` 不同时有效 |
 | I11 | `s_sop_i` 只在包首字为 1，`s_eop_i` 只在包末字为 1；包按 32-bit 字对齐 |
 | I12 | 配置在包首采样，整包生效；包中途写 `CONTROL` 不改变当前包的校验行为 |
+| I13 | 每个合法包恰好一拍 info；info 与首拍同拍，包 N+1 的 info 在包 N 的 payload 之后 |
+| I14 | 首拍在 `info_ready_i=1` 且 `m_ready_i=1` 之前不被接收；期间 `m_data_o`、`m_keep_o`、`m_sop_o`、`m_eop_o` 保持不变 |
 
 以下场景只画接口信号，不画内部状态。每个 `clk` 周期等于 2 个 tick。
 
-**读图约定**：`H0~H6` 是 7 个头字，`P0/P1` 是 payload 字，`INFO` 是 info 拍，`ERR` 是 error 脉冲。场景与阶段、F* 的对应关系见第 6 节场景索引。
+**读图约定**：`H0~H6` 是 7 个头字，`P0/P1` 是 payload 字，`INFO` 是首拍伴随的 info 拍（与首个 payload 拍同拍），`ERR` 是 error 脉冲。场景与阶段、F* 的对应关系见第 6 节场景索引。
 
 #### 场景 1：单个正常包（8 字节 payload）
 
 ![场景 1：单个正常包](REQ-002-ip-udp-parser/scenario-1-normal-packet.svg)
 
-**文字说明**：输入 7 个头字后，解析器先握手 info，再接收 payload 字。payload 输出 2 拍，首拍 `m_sop_o=1`，末拍 `m_eop_o=1`，两拍 `m_keep_o=4'b1111`。info 在 payload 首拍之前被接收。
+**文字说明**：输入 7 个头字后，首个 payload 字被接收；下一拍 info 与首个 payload 拍同拍输出。首拍要等 `info_ready_i` 与 `m_ready_i` 同时为 1；首拍接收后 `info_valid_o=0`，第二拍 payload 只看 `m_ready_i`。两拍 `m_keep_o=4'b1111`。
 
 #### 场景 2：背靠背两个包
 
 ![场景 2：背靠背两个包](REQ-002-ip-udp-parser/scenario-2-back-to-back.svg)
 
-**文字说明**：包 1 的 `s_eop_i` 之后下一拍就是包 2 的 `s_sop_i`。包 1 的 info 和 payload 先输出，包 2 的 info 排在包 1 的 payload 之后。两个包各自有独立的 sop/eop。
+**文字说明**：包 1 的 `s_eop_i` 之后下一拍就是包 2 的 `s_sop_i`。包 1 的 info 与首拍 payload 同拍输出；包 2 的 info 与包 2 首拍同拍，排在包 1 的 payload 之后。两个包各自有独立的 sop/eop。
 
 #### 场景 3：info 反压
 
 ![场景 3：info 反压](REQ-002-ip-udp-parser/scenario-3-info-backpressure.svg)
 
-**文字说明**：头解析完成后 `info_valid_o=1`，但 `info_ready_i=0`。解析器保持 info 和 `info_data_o` 不变，`s_ready_o=0`，`m_valid_o=0`。`info_ready_i` 拉高、info 被接收后，payload 才开始输出。
+**文字说明**：`info_valid_o` 与首个 payload 拍同拍，但 `info_ready_i=0`。解析器保持 info、`info_data_o`、`m_valid_o`、首拍数据和 `m_sop_o` 不变，`s_ready_o=0`。`info_ready_i` 拉高且 `m_ready_i=1` 后首拍被接收；首拍接收后 `info_valid_o=0`，后续 payload 继续。
 
 #### 场景 4：payload 反压
 
 ![场景 4：payload 反压](REQ-002-ip-udp-parser/scenario-4-data-backpressure.svg)
 
-**文字说明**：`m_valid_o=1` 后 `m_ready_i=0`。解析器保持 `m_data_o`、`m_keep_o`、`m_sop_o`、`m_eop_o` 不变，同时拉低 `s_ready_o`，输入暂停。`m_ready_i` 恢复后当前拍被接收，解析器继续。
+**文字说明**：首拍的 info 与 payload 同拍 valid，但 `m_ready_i=0`。解析器保持 `info_data_o`、`m_data_o`、`m_keep_o`、`m_sop_o`、`m_eop_o` 不变，同时拉低 `s_ready_o`，输入暂停。`m_ready_i` 恢复后首拍被接收。
 
 #### 场景 5：零长度 payload
 
 ![场景 5：零长度 payload](REQ-002-ip-udp-parser/scenario-5-zero-payload.svg)
 
-**文字说明**：UDP length=8，info 的 `payload_len=0`。data 通道仍输出一拍：`m_valid_o=1`、`m_keep_o=4'b0000`、`m_sop_o=1`、`m_eop_o=1`。这一拍不携带 payload 字节，只用于标出包边界。
+**文字说明**：UDP length=8，info 的 `payload_len=0`。info 与空 data 拍同拍：`m_valid_o=1`、`m_keep_o=4'b0000`、`m_sop_o=1`、`m_eop_o=1`。这一拍不携带 payload 字节，只用于标出包边界；首拍要等 `info_ready_i` 与 `m_ready_i` 同时为 1。
 
 #### 场景 6：头阶段错误（protocol ≠ 17）
 
@@ -494,7 +496,7 @@ flowchart TD
 
 ![场景 7：UDP 校验和错误](REQ-002-ip-udp-parser/scenario-7-udp-csum-error.svg)
 
-**文字说明**：info 和 payload 正常输出。最后一个 payload 拍接收后，`error_irq_o` 拉高一拍，`error_code_o=8`。下游必须用这个脉冲把本包已收到的 info 和 payload 作废。
+**文字说明**：info 与首拍 payload 同拍正常输出。最后一个 payload 拍接收后，`error_irq_o` 拉高一拍，`error_code_o=8`。下游必须用这个脉冲把本包已收到的 info 和 payload 作废。
 
 #### 场景 8：复位
 
@@ -512,7 +514,7 @@ flowchart TD
 
 ![场景 10：帧错误](REQ-002-ip-udp-parser/scenario-10-framing-error.svg)
 
-**文字说明**：包 1 还没有 `s_eop_i`，输入又出现 `s_sop_i`。解析器拉高 `error_irq_o` 一拍，`error_code_o=9`，并丢弃到下一个 `s_eop_i`。包 1 已输出的 info/payload 由 error 标记作废。
+**文字说明**：包 1 的 info 与首拍 payload 已输出，但包 1 还没有 `s_eop_i`，输入又出现 `s_sop_i`。解析器拉高 `error_irq_o` 一拍，`error_code_o=9`，并丢弃到下一个 `s_eop_i`。包 1 已输出的 info/payload 由 error 标记作废。
 
 ## 约束
 
@@ -520,7 +522,7 @@ flowchart TD
 |---|---|---|
 | 面积 | 首版不设面积门限；⑥ 记录 sky130 `sky130_fd_sc_hd__tt_025C_1v80` 的实测 cells，owner：⑥ 检查汇总 | 本功能点 |
 | 功耗 | 首版不设功耗门限；校验关闭时不计算校验和，owner：⑥ 检查汇总 | 本功能点 |
-| 时序 | 目标时钟 100 MHz（周期 10 ns），单周期同步设计；稳态吞吐 1 个 32-bit 字/拍，info 握手和反压会插入空拍 | 本功能点 |
+| 时序 | 目标时钟 100 MHz（周期 10 ns），单周期同步设计；稳态吞吐 1 个 32-bit 字/拍，首拍联合握手和反压会插入空拍 | 本功能点 |
 | 工艺 | sky130 | 项目约定 |
 | 包长 | 支持 IPv4 total length 28~65535 字节的 UDP 包；更短的包按错误处理。不缓存整包，包长不增加存储开销 | 本功能点 |
 | 其它 | RTL 必须能通过 Yosys + `sky130_fd_sc_hd` 综合；不使用不可综合结构 | 流程约定 |
@@ -536,3 +538,4 @@ flowchart TD
 | 2026-10-28 | 按「端到端认知」重写功能描述：一页流程图 → 7 字报文解剖 → 正常路径阶段表 → 错误检测点表 → 边界/反压 → 场景索引 → F* 契约；分类树由更具体的流水线视图取代，F* 移到契约节 | ②③⑤ 先读前六节建立端到端认知，再按 F* 引用契约 |
 | 2026-10-28 | 明确错误优先级：先发现先报、同拍取小、一包只报一次；新增错误优先级决策树，说明 code 9 的条件优先级、code 5 的两个检测点、code 7 早于 code 6 | ②③⑤ 用同一棵树判定多错并存时上报哪个码 |
 | 2026-10-28 | 按审阅意见删除「不做的事（non-goals）」小节；范围由正文写到的行为界定，未写到的视为不做；协议标准段补一句范围声明 | ②③⑤ 不再依赖 non-goals 清单，按正文与 F* 判断范围 |
+| 2026-10-28 | 修改 info/payload 契约：info 与首个 payload 拍同拍；首拍同时等 `info_ready_i` 与 `m_ready_i`，之后 info 结束、payload 只看 `m_ready_i`；同步 F4/F6、接口协议、I4/I8/I13 与场景 1/2/3/4/5/7/10 波形 | ②③④⑤ 按同拍联合握手实现；info 不再是独立前置握手 |

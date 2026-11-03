@@ -1,10 +1,10 @@
 {
   "head": {
-    "text": "Scenario 4: payload is back-pressured",
+    "text": "Scenario 4: payload backpressure holds the first info+payload beat",
     "tick": 0
   },
   "foot": {
-    "text": "1 clk = 2 ticks; data/sop/eop/keep hold while m_ready_i is low"
+    "text": "1 clk = 2 ticks; info and data hold together until m_ready_i is high"
   },
   "config": {
     "hscale": 1.8
@@ -20,15 +20,15 @@
     },
     {
       "name": "s_valid",
-      "wave": "0.1.................0......."
+      "wave": "0.1...............0........."
     },
     {
       "name": "s_ready",
-      "wave": "1...................0.....1."
+      "wave": "1.................0.......1."
     },
     {
       "name": "s_data",
-      "wave": "x.2.2.2.2.2.2.2.x.2.x.......",
+      "wave": "x.2.2.2.2.2.2.2.2.x.........",
       "data": [
         "H0",
         "H1",
@@ -46,11 +46,11 @@
     },
     {
       "name": "s_eop",
-      "wave": "0.................1.0......."
+      "wave": "0...............1.0........."
     },
     {
       "name": "info_valid",
-      "wave": "0...............1.0........."
+      "wave": "0.................1.......0."
     },
     {
       "name": "info_ready",
@@ -58,14 +58,14 @@
     },
     {
       "name": "info_data",
-      "wave": "x...............2.x.........",
+      "wave": "x.................2.......x.",
       "data": [
         "INFO"
       ]
     },
     {
       "name": "m_valid",
-      "wave": "0...................1.....0."
+      "wave": "0.................1.......0."
     },
     {
       "name": "m_ready",
@@ -73,25 +73,25 @@
     },
     {
       "name": "m_data",
-      "wave": "x...................2.....x.",
+      "wave": "x.................2.......x.",
       "data": [
         "P0"
       ]
     },
     {
       "name": "m_keep",
-      "wave": "x...................2.....x.",
+      "wave": "x.................2.......x.",
       "data": [
         "1111"
       ]
     },
     {
       "name": "m_sop",
-      "wave": "0...................1.....0."
+      "wave": "0.................1.......0."
     },
     {
       "name": "m_eop",
-      "wave": "0...................1.....0."
+      "wave": "0.................1.......0."
     },
     {
       "name": "error_irq",

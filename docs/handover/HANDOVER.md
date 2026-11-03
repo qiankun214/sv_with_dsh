@@ -202,3 +202,4 @@ python3 tools/sv.py trace    # 0 warn
 | 2026-10-28 | **Mermaid 约定**：流程/状态/决策树用 Mermaid，时序波形用 WaveDrom，字段/端口/场景用表格；REQ-002 的一页图与错误优先级树已改为 Mermaid | 本轮提交 |
 | 2026-10-28 | **删除 non-goals 约定**：spec 没写到的行为视为不做，不再要求「不做的事」小节；REQ-002 删除 non-goals，协议段补范围声明 | 本轮提交 |
 | 2026-10-28 | **Git 约定**：每次完成变更后本地 commit，不自动 push；push 只在用户明确要求时执行 | 本轮提交 |
+| 2026-10-28 | **info/payload 契约改为同拍联合握手**：info 与首个 payload 拍同拍；首拍同时等 `info_ready_i` 与 `m_ready_i`；之后 info 结束、payload 只看 `m_ready_i`；REQ-002 场景 1/2/3/4/5/7/10 波形重绘 | 本轮提交 |
