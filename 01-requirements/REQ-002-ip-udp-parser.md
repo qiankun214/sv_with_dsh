@@ -84,10 +84,17 @@ IPv4 的 total length 包含 IPv4 头和其后数据；UDP 的 length 包含 UDP
 
 输入是 32-bit 字流，每个包由 `s_sop_i` 开始、`s_eop_i` 结束。正常包先收 7 个头字（28 字节），再决定输出；错误包在检测点提前中止，丢弃到 eop。
 
-```text
-sop ──► W0..W6 头解析 ──► 合法性检查 ──► info 握手 ──► payload 流 ──► eop ──► 下一包
-                              │
-                              └─ 检查失败 ──► error 脉冲 ──► 丢弃到 eop ──► 下一包
+```mermaid
+flowchart LR
+  SOP["sop"] --> HDR["W0~W6 头解析"]
+  HDR --> CHK{"合法性检查"}
+  CHK -- "通过" --> INFO["info 握手"]
+  INFO --> PAY["payload 流"]
+  PAY --> EOP["eop / 尾部填充"]
+  EOP --> NXT["下一包"]
+  CHK -- "失败" --> ERR["error 脉冲"]
+  ERR --> DISC["丢弃到 eop"]
+  DISC --> NXT
 ```
 
 - 正常包：一拍 info + 若干拍 payload；info 一定在 payload 之前。
@@ -173,20 +180,20 @@ sop ──► W0..W6 头解析 ──► 合法性检查 ──► info 握手 �
 2. **同拍取小**：同一拍发现多个错误时，取错误码较小的那个。
 3. **一包一次**：一个包最多一个 `error_irq_o` 脉冲；报错后进入丢弃，直到 eop，后续错误不再产生脉冲。
 
-```text
-首次出错的拍
-├─ 该拍有字/尾错误？──是──► 按位置取码
-│  ├─ W0 → code 1 → 2 → 5
-│  ├─ W1 → code 3
-│  ├─ W2 → code 4
-│  ├─ W4 → code 7
-│  ├─ W6 → code 6
-│  ├─ payload 末 → code 8
-│  └─ eop → code 5
-└─ 否，且该拍只有帧错误 → code 9
-
-已经报过错
-└─ 不再报；丢弃到 eop
+```mermaid
+flowchart TD
+  A["错误发生"] --> B{"已经报过错?"}
+  B -- "是" --> C["不再报；丢弃到 eop"]
+  B -- "否" --> D{"该拍有字/尾错误?"}
+  D -- "是" --> E["按位置取码"]
+  E --> E1["W0: code 1 → 2 → 5（同拍取小）"]
+  E --> E2["W1: code 3"]
+  E --> E3["W2: code 4"]
+  E --> E4["W4: code 7"]
+  E --> E5["W6: code 6"]
+  E --> E6["payload 末: code 8"]
+  E --> E7["eop: code 5"]
+  D -- "否" --> F["只有帧错误: code 9"]
 ```
 
 几点说明：
